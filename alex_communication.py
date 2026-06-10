@@ -10,7 +10,8 @@ from cyclonedds.qos import Qos, Policy
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.topic import Topic
 
-from messages import AlexState, IMUState, ForceTorqueState
+from messages import AlexState, IMUState, ForceTorqueState, HardwareStatus
+
 
 class AlexCommunication:
     def __init__(self, frequency: float = 100.0):
@@ -24,9 +25,12 @@ class AlexCommunication:
         qos.reliability = Policy.Reliability.Reliable
         domain_participant = DomainParticipant(get_rtps_domain_id(), qos)
         alex_state_topic = Topic(domain_participant, "rt/alex_state", AlexState)
+        # alex_status_topic = Topic(domain_participant, "rt/hardware_status", HardwareStatus)
         self.state_listener = AlexStateListener()
+        # self.status_listener = HardwareStatusListener()
         subscriber = Subscriber(domain_participant)
         self.alex_state_reader = DataReader(subscriber, alex_state_topic, qos, listener=self.state_listener)
+        # self.hardware_status_reader = DataReader(subscriber, alex_status_topic, qos, listener=self.status_listener)
 
     def run_communication(self, lock: Union[threading.Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         try:
@@ -37,8 +41,15 @@ class AlexCommunication:
                 if lock is not None:
                     with lock:
                         if self.state_listener.alex_state is not None:
-                            shared_data["joint_states"] = self.state_listener.alex_state.joint_states
-                            print("updated state")
+                            joint_states = self.state_listener.alex_state.joint_states
+                            shared_data["alex_state"] = self.state_listener.alex_state
+                            # append = len(shared_data["joint_states"]) < 1
+                            # print(append)
+                            for i in range(len(joint_states)):
+                                shared_data["joint_states"][joint_states[i].joint_name] = joint_states[i]
+                            # shared_data["hardware_status"] = self.status_listener.hardware_status
+                            # print(self.status_listener.hardware_status)
+                            # print("updated state")
                 elapsed_time = (curr_time - time.perf_counter_ns()) * 1.0e-9
                 if elapsed_time < self.dt:
                     time.sleep(self.dt - elapsed_time)
@@ -56,8 +67,20 @@ class AlexStateListener(Listener):
 
     def on_data_available(self, reader: DataReader[AlexState]) -> None:
         self.alex_state = reader.read_next()
-        print("received")
-        print(self.alex_state)
+        # print("state received")
+        # print(self.alex_state)
+
+class HardwareStatusListener(Listener):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # self.alex_state = alex_state
+        self.hardware_status = None
+
+    def on_data_available(self, reader: DataReader[HardwareStatus]) -> None:
+        self.hardware_status = reader.read_next()
+        print("status received")
+        # print(self.alex_state)
 
 
 def get_rtps_domain_id(config_path=os.path.expanduser("~/.ihmc/IHMCNetworkParameters.ini")):

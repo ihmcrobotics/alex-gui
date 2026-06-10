@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from cyclonedds.idl.types import bounded_str, float64, int32, uint32, byte, array, sequence
+from cyclonedds.idl.types import bounded_str, float64, int32, uint32, byte, array, sequence, uint8
 from cyclonedds.idl import IdlStruct
 
 @dataclass
@@ -43,43 +43,43 @@ class ForceTorqueState(IdlStruct, typename="alex_msgs::msg::dds_::ForceTorqueSta
 
 @dataclass
 class AlexState(IdlStruct, typename="alex_msgs::msg::dds_::AlexState_"):
-    time: float64
-    is_faulted: bool
-    is_calibrated: bool
-    is_servoing: bool
-    is_unservoing: bool
-    is_servoed: bool
-    are_actuators_enabled: bool
-    safe_power_up_complete: bool
-    safe_power_down_complete: bool
-    auto_startup_complete: bool
-    auto_shutdown_complete: bool
-    current_low_level_master_gain: float64
-    joint_states: sequence[OneDOFJointState, 50]
-    number_of_joints: uint32
-    imu_states: sequence[IMUState, 50]
-    number_of_imus: uint32
-    ft_states: sequence[ForceTorqueState, 50]
-    number_of_fts: uint32
+    time: float64 = 0.0
+    is_faulted: bool = False
+    is_calibrated: bool = False
+    is_servoing: bool = False
+    is_unservoing: bool = False
+    is_servoed: bool = False
+    are_actuators_enabled: bool = False
+    safe_power_up_complete: bool = False
+    safe_power_down_complete: bool = False
+    auto_startup_complete: bool = False
+    auto_shutdown_complete: bool = False
+    current_low_level_master_gain: float64 = 0.0
+    joint_states: sequence[OneDOFJointState, 50] = field(default_factory=list)
+    number_of_joints: uint32 = 0
+    imu_states: sequence[IMUState, 50]= field(default_factory=list)
+    number_of_imus: uint32 = 0
+    ft_states: sequence[ForceTorqueState, 50]= field(default_factory=list)
+    number_of_fts: uint32 = 0
 
 @dataclass
-class AlexCommand(IdlStruct):
-    request_auto_startup: bool
-    request_auto_shutdown: bool
-    request_safe_power_up: bool
-    request_safe_power_down: bool
-    request_enable_actuators: bool
-    request_disable_actuators: bool
-    clear_faults: bool
-    calibrate: bool
-    servo_actuators: bool
-    unservo_quickly: bool
-    use_requested_master_gain: bool
-    requested_master_gain: float64
-    disable_noncritical_faults: bool
-    robot_control_state: byte
-    joint_commands: sequence[OneDOFJointCommand, 50]
-    number_of_joints: uint32
+class AlexCommand(IdlStruct, typename="alex_msgs::msg::dds_::AlexCommand_"):
+    request_auto_startup: bool = False
+    request_auto_shutdown: bool = False
+    request_safe_power_up: bool = False
+    request_safe_power_down: bool = False
+    request_enable_actuators: bool = False
+    request_disable_actuators: bool = False
+    clear_faults: bool = False
+    calibrate: bool = False
+    servo_actuators: bool = False
+    unservo_quickly: bool = False
+    use_requested_master_gain: bool = False
+    requested_master_gain: float64 = 0.0
+    disable_noncritical_faults: bool = False
+    robot_control_state: uint8 = 0
+    joint_commands: sequence[OneDOFJointCommand, 50] = field(default_factory=list)
+    number_of_joints: uint32 = 0.0
 #
 # @dataclass
 # class FortRoboticsRCHandheldState(IdlStruct):
@@ -165,54 +165,54 @@ class AlexCommand(IdlStruct):
 #     # Battery
 #     battery_level: float64
 
-@dataclass
-class HardwareResources(IdlStruct):
-    num_xml_resources: uint32 = 0
-    num_urdf_resources: uint32 = 0
-    xml_resources: sequence[str, 11] = field(default_factory=list)
-    urdf_resources: sequence[str, 10] = field(default_factory=list)
-    directory: str = ""
+# @dataclass
+# class HardwareResources(IdlStruct):
+#     num_xml_resources: uint32 = 0
+#     num_urdf_resources: uint32 = 0
+#     xml_resources: sequence[str, 11] = field(default_factory=list)
+#     urdf_resources: sequence[str, 10] = field(default_factory=list)
+#     directory: str = ""
 
 @dataclass
-class ROSDeviceStatusProvider(IdlStruct):
-    name: str = ""
-    is_responding: bool = False
-    is_faulted: bool = False
-    ethercat_state: byte = field(default_factory=byte)
+class ROSDeviceStatusProvider(IdlStruct, typename="alex_msgs::msg::dds_::ROSDeviceStatusProvider_"):
+    name: bounded_str[70]
+    is_responding: bool
+    is_faulted: bool
+    ethercat_state: uint8
 
-    under_voltage: bool = False
-    over_voltage: bool = False
-    sto_disabled: bool = False
-    current_short: bool = False
-    over_temp: bool = False
+    under_voltage: bool
+    over_voltage: bool
+    sto_disabled: bool
+    current_short: bool
+    over_temp: bool
 
 @dataclass
-class HardwareStatus(IdlStruct):
-    robot_fault: bool = False
-    motor_fault: bool = False
-    missed_deadline_fault: bool = False
-    working_counter_fault: bool = False
-    bus_over_voltage_fault: bool = False
-    bus_over_current_fault: bool = False
+class HardwareStatus(IdlStruct, typename="alex_msgs::msg::dds_::HardwareStatus_"):
+    robot_fault: bool
+    motor_fault: bool
+    missed_deadline_fault: bool
+    working_counter_fault: bool
+    bus_over_voltage_fault: bool
+    bus_over_current_fault: bool
 
-    working_counter_mismatch_count: uint32 = 0
-    missed_deadlines: uint32 = 0
+    working_counter_mismatch_count: uint32
+    missed_deadlines: uint32
 
-    battery_charge_percetage: float = 0.0
-    estimated_runtime_minutes: uint32 = 0
-    bus_over_voltage_warning: bool = False
-    bus_over_current_warning: bool = False
-    battery_voltage_volts: float = 0.0
-    battery_current_amps: float = 0.0
-    battery_power_watts: float = 0.0
-    power_supply_voltage_volts: float = 0.0
-    power_supply_current_amps: float = 0.0
-    power_supply_power_watts: float = 0.0
-    motor_bus_voltage_volts: float = 0.0
-    motor_bus_current_amps: float = 0.0
-    motor_bus_power_watts: float = 0.0
+    battery_charge_percetage: float64
+    estimated_runtime_minutes: uint32
+    bus_over_voltage_warning: bool
+    bus_over_current_warning: bool
+    battery_voltage_volts: float64
+    battery_current_amps: float64
+    battery_power_watts: float64
+    power_supply_voltage_volts: float64
+    power_supply_current_amps: float64
+    power_supply_power_watts: float64
+    motor_bus_voltage_volts: float64
+    motor_bus_current_amps: float64
+    motor_bus_power_watts: float64
 
-    device_status_providers: sequence[ROSDeviceStatusProvider, 75] = field(default_factory=list)
+    device_status_providers: sequence[ROSDeviceStatusProvider, 75]
 
 
 

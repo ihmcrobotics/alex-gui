@@ -1,16 +1,18 @@
 import time
-from typing import List, Dict, Literal
+from typing import List, Dict, Literal, Union, Any
 
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from threading import Lock
 from copy import deepcopy
+import math
 
 import numpy as np
 from rich_click.decorators import command
+from skrobot.model import RobotModel
 
-from messages import OneDOFJointCommand, OneDOFJointState
+from messages import OneDOFJointCommand, OneDOFJointState, AlexCommand, AlexState
 
 
 def _initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict[str, DoubleVar],
@@ -19,23 +21,23 @@ def _initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict
                                        upper_limits: List[float] | None = None) -> None:
     for i in range(len(joint_names)):
         joint_name = joint_names[i]
-        label = ttk.Label(joint_frame, text=joint_name)
-        label.grid(row=i, column=0)
+        ttk.Label(joint_frame, text=joint_name).grid(row=i*2 + 1, column=0, sticky="E")
         if type_ == "Position":
-            slider = ttk.Scale(joint_frame, length=200, orient='horizontal', from_=lower_limits[i], to=upper_limits[i],
-                       variable=joint_dict[joint_name])
+            slider = Scale(joint_frame, length=200, orient='horizontal', from_=lower_limits[i], to=upper_limits[i],
+                           resolution=0.0001, variable=joint_dict[joint_name])
 
 
-            slider.grid(row=i, column=1)
+            slider.grid(row=i*2, column=1, rowspan=2)
         else:
             entry = ttk.Entry(joint_frame, textvariable=joint_dict[joint_name])
             entry.grid(row=i, column=1)
 
 
-def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[str]):
+def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[str],
+                                     joint_max_torque: List[float]) -> Dict[str, Dict]:
+    joint_max_torque = {joint: DoubleVar(value=max_torque) for joint, max_torque in zip(joint_names, joint_max_torque)}
     joint_stiffness = {joint: DoubleVar() for joint in joint_names}
     joint_damping = {joint: DoubleVar() for joint in joint_names}
-    joint_max_torque = {joint: DoubleVar() for joint in joint_names}
     joint_max_pos_error = {joint: DoubleVar() for joint in joint_names}
     joint_max_vel_error = {joint: DoubleVar() for joint in joint_names}
 
@@ -85,31 +87,37 @@ def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[s
 
 
 class AlexControlGUI:
-    def __init__(self, joint_names: List[str], joint_lower_limits: List[float], joint_upper_limits: List[float]): #, joint_ids: Dict[str, int], joint_lower_limits: np.ndarray, joint_upper_limits: np.ndarray, robot_id: int, ghost_id: int):
+    def __init__(self, robot: RobotModel): #joint_names: List[str], joint_lower_limits: List[float], joint_upper_limits: List[float], joint_max_torque: List[float]): #, joint_ids: Dict[str, int], joint_lower_limits: np.ndarray, joint_upper_limits: np.ndarray, robot_id: int, ghost_id: int):
         self.control_panel = Tk()
         self.control_panel.title('Alex Control')
         self.content = Frame(self.control_panel)
 
         self.content.grid(row=0, column=0)
         self._initialize_startup_shutdown_buttons()
-        self._initialize_status_buttons()
+        self._initialize_state_buttons()
         self._initialize_control_buttons()
-        self.joint_names = joint_names
+        self.joint_names = robot.joint_names
+        max_torques = [joint.max_joint_torque for joint in robot.joint_list]
 
-        if (joint_names is not None):
-            self.joint_position_frame = LabelFrame(self.content, text="Joint Position")
-            self._joint_positions = {joint: DoubleVar() for joint in joint_names}
-            self.joint_position_frame.grid(row=1, column=1, rowspan=4, sticky="n")
-            _initialize_joint_position_sliders(self.joint_position_frame, self._joint_positions, joint_names, lower_limits=joint_lower_limits, upper_limits=joint_upper_limits)
+        self.joint_position_frame = LabelFrame(self.content, text="Joint Position")
+        self._joint_positions = {joint: DoubleVar() for joint in self.joint_names}
+        self.joint_position_frame.grid(row=1, column=1, rowspan=4, sticky="n")
+        _initialize_joint_position_sliders(self.joint_position_frame, self._joint_positions, robot.joint_names,
+                                           lower_limits=robot.joint_min_angles, upper_limits=robot.joint_max_angles)
 
-            parameter_notebook = ttk.Notebook(self.content)
-            parameter_notebook.grid(row=1, column=2, rowspan=15, sticky="n")
-            self._joint_parameter_dict = _initialize_joint_parameter_tabs(parameter_notebook, joint_names)
+        parameter_notebook = ttk.Notebook(self.content)
+        parameter_notebook.grid(row=1, column=2, rowspan=15, sticky="n")
+        self._max_torques = dict(zip(self.joint_names, max_torques))
+
+        self._joint_parameter_dict = _initialize_joint_parameter_tabs(parameter_notebook, self.joint_names, max_torques)
 
         self._begin_time = time.perf_counter_ns()
         self.window_active = True
         self.control_panel.bind("<Destroy>", self.is_destroyed)
         self._reset = False
+
+        joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_list]
+        self.alex_command = AlexCommand(joint_commands=joint_commands)
 
     def _initialize_startup_shutdown_buttons(self):
         command_button_frame = LabelFrame(self.content, text="Startup/Shutdown", borderwidth=5, relief="ridge",
@@ -135,76 +143,160 @@ class AlexControlGUI:
         self._use_custom_impedance = BooleanVar(value=False)
         self._send_desireds = BooleanVar(value=False)
         self._send_desireds_continuously = BooleanVar(value=False)
-        self._reset_joint_positions = BooleanVar(value=False)
+        self._reset_joint_positions = BooleanVar(value=True)
+        self._master_gain = DoubleVar(value=0.0)
 
         ttk.Checkbutton(control_button_frame, text="Use Custom Impedance", variable=self._use_custom_impedance).grid(row=1, column=1, sticky="w")
         ttk.Checkbutton(control_button_frame, text="Send Desireds Continuously", variable=self._send_desireds_continuously).grid(row=0, column=1, sticky="w")
         Button(control_button_frame, text="Send Joint Desireds", command= lambda: self._send_desireds.set(True)).grid(row=0, column=0, sticky="w")
         Button(control_button_frame, text = "Reset Joint Desireds", command= lambda: self._reset_joint_positions.set(True)).grid(row=1, column=0, sticky="w")
+        self._master_gain_display = Label(control_button_frame, text="Master Gain: 0.0")
+        self._master_gain_display.grid(row=2, column=0, sticky="w")
+        Scale(control_button_frame, variable=self._master_gain, orient='horizontal', from_=0.0, to=1.0, resolution=0.01, showvalue=False,
+              command=lambda value: self._master_gain_display.config(text="Master Gain: " + str(value))).grid(row=3, column=0, sticky="w", columnspan=2)
 
-    def _initialize_status_buttons(self):
-        self.status_button_frame = LabelFrame(self.content, text="Status Buttons", borderwidth=5, relief="ridge",
-                                              width=200, height=200)
 
-        self.auto_shutdown_complete = BooleanVar(value=False)
-        self.auto_startup_complete = BooleanVar(value=False)
+    def _on_master_gain_change(self, value):
+        self._master_gain_display.config(text=f"{self._:.2f}")
 
-        self.auto_shutdown_complete_button = ttk.Checkbutton(self.status_button_frame, text="Auto-Shutdown Complete",
-                                                             variable=self.auto_shutdown_complete)
-        self.auto_startup_complete_button = ttk.Checkbutton(self.status_button_frame, text="Auto-Startup Complete",
-                                                            variable=self.auto_startup_complete)
+    def _initialize_state_buttons(self):
+        self.robot_state_frame = LabelFrame(self.content, text="Robot State", borderwidth=5, relief="ridge",
+                                            width=200, height=200)
+        self.robot_state_frame.grid(row=1, column=0, sticky="n")
 
-        self.status_button_frame.grid(row=1, column=0, sticky="n")
-        self.auto_startup_complete_button.grid(row=0, column=0, sticky="w")
-        self.auto_shutdown_complete_button.grid(row=1, column=0, sticky="w")
+        self._time = DoubleVar(value=0.0)
+        self._is_faulted = BooleanVar(value=False)
+        self._is_servoing = BooleanVar(value=False)
+        self._is_unservoing = BooleanVar(value=False)
+        self._is_servoed = BooleanVar(value=False)
+        self._are_actuators_enabled = BooleanVar(value=False)
+        self._safe_power_up_complete = BooleanVar(value=False)
+        self._safe_power_down_complete = BooleanVar(value=False)
+        self._current_ll_master_gain = DoubleVar(value=0.0)
+        self._auto_shutdown_complete = BooleanVar(value=False)
+        self._auto_startup_complete = BooleanVar(value=False)
+
+        ttk.Label(self.robot_state_frame, text="Time: ").grid(row=0, column=0, sticky="w")
+        ttk.Label(self.robot_state_frame, textvariable=self._time).grid(row=0, column=1, sticky="w")
+        ttk.Label(self.robot_state_frame, text="LL Master Gain: ").grid(row=1, column=0, sticky="w")
+        ttk.Label(self.robot_state_frame, textvariable=self._current_ll_master_gain).grid(row=1, column=1, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Robot Faulted",
+                        variable=self._is_faulted).grid(row=2, column=0, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Servoing Robot",
+                        variable=self._is_servoing).grid(row=3, column=0, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Unservoing Robot",
+                        variable=self._is_unservoing).grid(row=3, column=1, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Robot Servoed",
+                        variable=self._is_servoed).grid(row=4, column=0, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Actuators Enabled",
+                        variable=self._are_actuators_enabled).grid(row=2, column=1, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Safe Power Up Complete",
+                        variable=self._safe_power_up_complete).grid(row=5, column=0, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Safe Power Down Complete",
+                        variable=self._safe_power_down_complete).grid(row=5, column=1, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Auto Shutdown Complete",
+                        variable=self._auto_shutdown_complete).grid(row=6, column=1, sticky="w")
+        ttk.Checkbutton(self.robot_state_frame, text="Auto Startup Complete",
+                        variable=self._auto_startup_complete).grid(row=6, column=0, sticky="w")
+
+
 
     def update_gui(self):
         self.control_panel.update()
         self.update_startup_shutdown(False)
 
-    def _reset_sliders(self, joint_states: Dict[str, OneDOFJointState]):
-        for name in self.joint_names:
-            self._joint_positions[name].set(joint_states[name].q)
+    def _reset_sliders(self, joint_states: List[OneDOFJointState]):
+        for state in joint_states:
+            name = state.joint_name
+            if name in self.joint_names:
+                self._joint_positions[name].set(state.q)
         self._reset_joint_positions.set(False)
+        self._send_desireds.set(True)
 
-    def run_gui(self, lock: Lock, shared_data: Dict):
-        # self.root.mainloop()
+    def run_gui(self, lock: Union[Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         while self.window_active:
             self.update_gui()
-            with lock:
-                if self._reset_joint_positions.get():
-                    self._reset_sliders(shared_data["joint_states"])
-                if self._send_desireds.get() or self._send_desireds_continuously.get():
-                    self._write_desireds(shared_data["joint_commands"])
-                    self._send_desireds.set(False)
+            if lock is not None and shared_data is not None:
+                with lock:
+                    self._read_state(shared_data["alex_state"])
+                    self._write_command(shared_data["alex_command"])
             time.sleep(0.01)
 
-    def _write_desireds(self, data: Dict[str, OneDOFJointCommand]):
-        for name in self.joint_names:
-            joint_desired = data[name]
-            joint_desired.q_des = self._joint_positions[name].get()
-            joint_desired.qd_des = 0.0
-            joint_desired.taw_des = 0.0
-            joint_desired.stiffness = self._joint_parameter_dict["stiffness"][name].get()
-            joint_desired.damping = self._joint_parameter_dict["damping"][name].get()
-            joint_desired.max_torque = self._joint_parameter_dict["max_torque"][name].get()
-            joint_desired.max_position_error = self._joint_parameter_dict["max_pos_error"][name].get()
-            joint_desired.max_velocity_error = self._joint_parameter_dict["max_vel_error"][name].get()
+    def _read_state(self, alex_state: AlexState):
+        self._time.set(alex_state.time)
+        self._is_faulted.set(alex_state.is_faulted)
+        self._is_servoing.set(alex_state.is_servoing)
+        self._is_unservoing.set(alex_state.is_unservoing)
+        self._is_servoed.set(alex_state.is_servoed)
+        self._are_actuators_enabled.set(alex_state.are_actuators_enabled)
+        self._safe_power_up_complete.set(alex_state.safe_power_up_complete)
+        self._safe_power_down_complete.set(alex_state.safe_power_down_complete)
+        self._current_ll_master_gain.set(alex_state.current_low_level_master_gain)
+        self._auto_shutdown_complete.set(alex_state.auto_shutdown_complete)
+        self._auto_startup_complete.set(alex_state.auto_startup_complete)
+
+        if self._reset_joint_positions.get():
+            self._reset_sliders(alex_state.joint_states)
+
+    def _write_command(self, alex_command: AlexCommand):
+        alex_command.request_auto_startup = self.request_auto_startup.get()
+        alex_command.request_auto_shutdown = self.request_auto_shutdown.get()
+        alex_command.number_of_joints = len(self.joint_names)
+        alex_command.clear_faults = self.clear_faults.get()
+        alex_command.request_enable_actuators = self.enable_actuators.get()
+        alex_command.request_disable_actuators = not self.enable_actuators.get()
+        alex_command.requested_master_gain = 0.0
+
+        if self._send_desireds.get() or self._send_desireds_continuously.get():
+            self._update_desireds(alex_command.joint_commands)
+            self._send_desireds.set(False)
+
+    def _update_desireds(self, commands: List[OneDOFJointCommand]):
+        for command in commands:
+            name = command.joint_name
+            command.q_des = self._joint_positions[name].get()
+            command.qd_des = 0.0
+            command.taw_des = 0.0
+            command.stiffness = self._joint_parameter_dict["stiffness"][name].get()
+            command.damping = self._joint_parameter_dict["damping"][name].get()
+            command.max_torque = self._joint_parameter_dict["max_torque"][name].get()
+            command.max_position_error = self._joint_parameter_dict["max_pos_error"][name].get()
+            command.max_velocity_error = self._joint_parameter_dict["max_vel_error"][name].get()
+
+    def _check_limits(self, joint_name: str):
+        requested_max_torque = self._joint_parameter_dict["max_torque"][joint_name]
+        max_position_error = self._joint_parameter_dict["max_pos_error"][joint_name]
+        max_velocity_error = self._joint_parameter_dict["max_vel_error"][joint_name]
+        stiffness = self._joint_parameter_dict["stiffness"][joint_name].get()
+        damping = self._joint_parameter_dict["damping"][joint_name].get()
+
+        if self._max_torques[joint_name] < requested_max_torque.get():
+            print (joint_name + " max torque exceeded")
+            max_torque = self._max_torques[joint_name]
+            requested_max_torque.set(max_torque)
+        else:
+            max_torque = requested_max_torque.get()
+
+        if stiffness > 0.0:
+            max_position_error.set(min(max_position_error.get(), max_torque / stiffness))
+
+        if damping > 0.0:
+            max_velocity_error.set(min(max_velocity_error.get(), max_torque / damping))
 
 
     def _begin_startup_shutdown(self):
         print("Attempting")
         if not self.request_auto_startup.get() and not self.request_auto_shutdown.get():
-            if not self.auto_shutdown_complete.get() and not self.auto_startup_complete.get():
+            if not self._auto_shutdown_complete.get() and not self._auto_startup_complete.get():
                 self.request_auto_startup.set(True)
                 self.request_auto_shutdown.set(False)
-            elif self.auto_startup_complete.get():
+            elif self._auto_startup_complete.get():
                 self.request_auto_shutdown.set(True)
-                self.auto_startup_complete.set(False)
+                self._auto_startup_complete.set(False)
                 print("Shutting down")
-            elif self.auto_shutdown_complete:
+            elif self._auto_shutdown_complete:
                 self.request_auto_startup.set(True)
-                self.auto_shutdown_complete.set(False)
+                self._auto_shutdown_complete.set(False)
                 print("Starting up")
             elif self.request_auto_startup.get():
                 self.request_auto_shutdown.set(True)
@@ -215,11 +307,11 @@ class AlexControlGUI:
     def update_startup_shutdown(self, startup_shutdown_complete):
         if self.request_auto_startup.get() and (startup_shutdown_complete or self.time_elapsed() > 1.0):
             self.request_auto_startup.set(False)
-            self.auto_startup_complete.set(True)
+            self._auto_startup_complete.set(True)
             print("auto startup complete")
         elif self.request_auto_shutdown.get() and (startup_shutdown_complete or self.time_elapsed() > 1.0):
             self.request_auto_shutdown.set(False)
-            self.auto_shutdown_complete.set(True)
+            self._auto_shutdown_complete.set(True)
             print("auto shutdown complete")
 
     def time_elapsed(self):
@@ -239,8 +331,9 @@ class AlexControlGUI:
 
 import threading
 if __name__ == "__main__":
-    joint_list = ["heh", "meh", "leh", "teh"]
-    gui = AlexControlGUI(joint_list)
+    path = "/ihmc-alex-sdk/alex-models/alex_description/urdf/002/hehehe.urdf"
+    robot = RobotModel.from_urdf(path)
+    gui = AlexControlGUI(robot)
 
     gui.run_gui()
 
