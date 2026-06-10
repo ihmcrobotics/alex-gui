@@ -120,22 +120,41 @@ class AlexControlGUI:
         self.alex_command = AlexCommand(joint_commands=joint_commands)
 
     def _initialize_startup_shutdown_buttons(self):
-        command_button_frame = LabelFrame(self.content, text="Startup/Shutdown", borderwidth=5, relief="ridge",
+        main_operation_frame = LabelFrame(self.content, text="Auto Startup/Shutdown", borderwidth=5, relief="ridge",
                                                width=200, height=200)
-        command_button_frame.grid(row=0, column=0, sticky="n")
+        main_operation_frame.grid(row=0, column=0, sticky="n")
+        secondary_operation_frame = LabelFrame(self.content, text="Manual Startup/Shutdown", borderwidth=5, relief="ridge",
+                                          width=200, height=200)
+        secondary_operation_frame.grid(row=1, column=0, sticky="n")
 
-        self.request_auto_startup = BooleanVar(value=False)
-        self.request_auto_shutdown = BooleanVar(value=False)
-        self.enable_actuators = BooleanVar(value=False)
-        self.servo_robot = BooleanVar(value=False)
-        self.unservo_quickly = BooleanVar(value=False)
-        self.clear_faults = BooleanVar(value=False)
+        self._request_auto_startup = BooleanVar(value=False)
+        self._request_auto_shutdown = BooleanVar(value=False)
+        self._request_safe_startup = BooleanVar(value=False)
+        self._request_safe_shutdown = BooleanVar(value=False)
+        self._enable_actuators = BooleanVar(value=False)
+        self._clear_faults = BooleanVar(value=False)
+        self._calibrate = BooleanVar(value=False)
+        self._servo_robot = BooleanVar(value=False)
+        self._unservo_quickly = BooleanVar(value=False)
+        self._use_requested_master_gain = BooleanVar(value=False)
+        self._master_gain = DoubleVar(value=0.0)
 
-        Button(command_button_frame, text="Request Auto Startup/Shutdown",command=self._begin_startup_shutdown).grid(row=0, column=0, sticky="w")
-        ttk.Checkbutton(command_button_frame, text="Enable Actuators", variable=self.enable_actuators).grid(row=1, column=0, sticky="w")
-        ttk.Checkbutton(command_button_frame, text="Servo Robot", variable=self.servo_robot).grid(row=2, column=0, sticky="w")
-        Button(command_button_frame, text="Unservo Quickly", bg="red", command=lambda: self.unservo_quickly.set(True)).grid(row=0, column=1, sticky="w")
-        ttk.Checkbutton(command_button_frame, text="Clear Faults", variable=self.clear_faults).grid(row=1, column=1, sticky="w")
+        self._auto_startup_shutdown_button = Button(main_operation_frame, text="Request Auto Startup", command=self._run_auto_startup_shutdown)
+        self._auto_startup_shutdown_button.grid(row=0, column=0, sticky="w")
+        Button(main_operation_frame, text="Unservo Quickly", bg="red",
+               command=lambda: self._unservo_quickly.set(True)).grid(row=1, column=0, sticky="w")
+        self._safe_power_up_down_button = Button(secondary_operation_frame, text="Request Safe Power Up", command=self._run_auto_startup_shutdown)
+        self._safe_power_up_down_button.grid(row=0, column=0, sticky="w", columnspan=2)
+        ttk.Checkbutton(secondary_operation_frame, text="Enable Actuators", variable=self._enable_actuators).grid(row=2, column=0, sticky="w")
+        ttk.Checkbutton(secondary_operation_frame, text="Servo Robot", variable=self._servo_robot).grid(row=3, column=0, sticky="w")
+        Button(secondary_operation_frame, text="Clear Faults", command=lambda: self._clear_faults.set(True)).grid(row=1, column=0, sticky="w")
+        self._master_gain_display = Label(secondary_operation_frame, text="Master Gain: 0.0")
+        self._master_gain_display.grid(row=3, column=0, sticky="w")
+        Scale(secondary_operation_frame, variable=self._master_gain, orient='horizontal', from_=0.0, to=1.0,
+              resolution=0.01, showvalue=False,
+              command=lambda value: self._master_gain_display.config(text="Master Gain: " + str(value))).grid(row=3,
+                                                                                                              column=1,
+                                                                                                              sticky="w")
 
     def _initialize_control_buttons(self):
         control_button_frame = LabelFrame(self.content, text="Control")
@@ -144,16 +163,12 @@ class AlexControlGUI:
         self._send_desireds = BooleanVar(value=False)
         self._send_desireds_continuously = BooleanVar(value=False)
         self._reset_joint_positions = BooleanVar(value=True)
-        self._master_gain = DoubleVar(value=0.0)
+
 
         ttk.Checkbutton(control_button_frame, text="Use Custom Impedance", variable=self._use_custom_impedance).grid(row=1, column=1, sticky="w")
         ttk.Checkbutton(control_button_frame, text="Send Desireds Continuously", variable=self._send_desireds_continuously).grid(row=0, column=1, sticky="w")
         Button(control_button_frame, text="Send Joint Desireds", command= lambda: self._send_desireds.set(True)).grid(row=0, column=0, sticky="w")
         Button(control_button_frame, text = "Reset Joint Desireds", command= lambda: self._reset_joint_positions.set(True)).grid(row=1, column=0, sticky="w")
-        self._master_gain_display = Label(control_button_frame, text="Master Gain: 0.0")
-        self._master_gain_display.grid(row=2, column=0, sticky="w")
-        Scale(control_button_frame, variable=self._master_gain, orient='horizontal', from_=0.0, to=1.0, resolution=0.01, showvalue=False,
-              command=lambda value: self._master_gain_display.config(text="Master Gain: " + str(value))).grid(row=3, column=0, sticky="w", columnspan=2)
 
 
     def _on_master_gain_change(self, value):
@@ -162,7 +177,7 @@ class AlexControlGUI:
     def _initialize_state_buttons(self):
         self.robot_state_frame = LabelFrame(self.content, text="Robot State", borderwidth=5, relief="ridge",
                                             width=200, height=200)
-        self.robot_state_frame.grid(row=1, column=0, sticky="n")
+        self.robot_state_frame.grid(row=2, column=0, sticky="n")
 
         self._time = DoubleVar(value=0.0)
         self._is_faulted = BooleanVar(value=False)
@@ -203,7 +218,8 @@ class AlexControlGUI:
 
     def update_gui(self):
         self.control_panel.update()
-        self.update_startup_shutdown(False)
+        self.update_auto_startup_shutdown()
+        self.update_safe_power_up_down()
 
     def _reset_sliders(self, joint_states: List[OneDOFJointState]):
         for state in joint_states:
@@ -239,12 +255,12 @@ class AlexControlGUI:
             self._reset_sliders(alex_state.joint_states)
 
     def _write_command(self, alex_command: AlexCommand):
-        alex_command.request_auto_startup = self.request_auto_startup.get()
-        alex_command.request_auto_shutdown = self.request_auto_shutdown.get()
+        alex_command.request_auto_startup = self._request_auto_startup.get()
+        alex_command.request_auto_shutdown = self._request_auto_shutdown.get()
         alex_command.number_of_joints = len(self.joint_names)
-        alex_command.clear_faults = self.clear_faults.get()
-        alex_command.request_enable_actuators = self.enable_actuators.get()
-        alex_command.request_disable_actuators = not self.enable_actuators.get()
+        alex_command.clear_faults = self._clear_faults.get()
+        alex_command.request_enable_actuators = self._enable_actuators.get()
+        alex_command.request_disable_actuators = not self._enable_actuators.get()
         alex_command.requested_master_gain = 0.0
 
         if self._send_desireds.get() or self._send_desireds_continuously.get():
@@ -284,35 +300,73 @@ class AlexControlGUI:
             max_velocity_error.set(min(max_velocity_error.get(), max_torque / damping))
 
 
-    def _begin_startup_shutdown(self):
+    def _run_auto_startup_shutdown(self):
         print("Attempting")
-        if not self.request_auto_startup.get() and not self.request_auto_shutdown.get():
+        if not self._request_auto_startup.get() and not self._request_auto_shutdown.get():
             if not self._auto_shutdown_complete.get() and not self._auto_startup_complete.get():
-                self.request_auto_startup.set(True)
-                self.request_auto_shutdown.set(False)
+                self._auto_startup_shutdown_button.config(text="Starting up, press to stop")
+                self._request_auto_startup.set(True)
+                self._request_auto_shutdown.set(False)
             elif self._auto_startup_complete.get():
-                self.request_auto_shutdown.set(True)
+                self._auto_startup_shutdown_button.config(text="Shutting down", state="disabled")
+                self._request_auto_shutdown.set(True)
                 self._auto_startup_complete.set(False)
                 print("Shutting down")
             elif self._auto_shutdown_complete:
-                self.request_auto_startup.set(True)
+                self._auto_startup_shutdown_button.config(text="Starting up, press to stop")
+                self._request_auto_startup.set(True)
                 self._auto_shutdown_complete.set(False)
                 print("Starting up")
-            elif self.request_auto_startup.get():
-                self.request_auto_shutdown.set(True)
-                self.request_auto_startup.set(False)
+            elif self._request_auto_startup.get():
+                self._auto_startup_shutdown_button.config(text="Shutting down", state="disabled")
+                self._request_auto_shutdown.set(True)
+                self._request_auto_startup.set(False)
                 print("Shutting down midway through startup")
         self._begin_time = time.perf_counter_ns()
 
-    def update_startup_shutdown(self, startup_shutdown_complete):
-        if self.request_auto_startup.get() and (startup_shutdown_complete or self.time_elapsed() > 1.0):
-            self.request_auto_startup.set(False)
-            self._auto_startup_complete.set(True)
+    def update_auto_startup_shutdown(self):
+        if self._request_auto_startup.get() and (self._auto_startup_complete.get() or self.time_elapsed() > 1.0):
+            self._auto_startup_shutdown_button.config(text="Request Auto Shutdown", state="normal")
+            self._request_auto_startup.set(False)
             print("auto startup complete")
-        elif self.request_auto_shutdown.get() and (startup_shutdown_complete or self.time_elapsed() > 1.0):
-            self.request_auto_shutdown.set(False)
-            self._auto_shutdown_complete.set(True)
+        elif self._request_auto_shutdown.get() and (self._auto_shutdown_complete.get() or self.time_elapsed() > 1.0):
+            self._auto_startup_shutdown_button.config(text="Request Auto Startup", state="normal")
+            self._request_auto_shutdown.set(False)
             print("auto shutdown complete")
+
+    def _run_safe_power_up_down(self):
+        print("Attempting")
+        if not self._request_safe_startup.get() and not self._request_safe_shutdown.get():
+            if not self._safe_power_down_complete.get() and not self._safe_power_up_complete.get():
+                self._safe_power_up_down_button.config(text="Starting up, press to stop")
+                self._request_safe_startup.set(True)
+                self._request_safe_shutdown.set(False)
+            elif self._safe_power_up_complete.get():
+                self._safe_power_up_down_button.config(text="Shutting down", state="disabled")
+                self._request_safe_shutdown.set(True)
+                self._safe_power_up_complete.set(False)
+                print("Shutting down")
+            elif self._safe_power_down_complete:
+                self._safe_power_up_down_button.config(text="Starting up, press to stop")
+                self._request_safe_startup.set(True)
+                self._safe_power_down_complete.set(False)
+                print("Starting up")
+            elif self._request_safe_startup.get():
+                self._safe_power_up_down_button.config(text="Shutting down", state="disabled")
+                self._request_safe_shutdown.set(True)
+                self._request_safe_startup.set(False)
+                print("Shutting down midway through startup")
+        self._begin_time = time.perf_counter_ns()
+
+    def update_safe_power_up_down(self, power_up_down_complete):
+        if self._request_safe_startup.get() and (self._safe_power_up_complete.get() or self.time_elapsed() > 1.0):
+            self._safe_power_up_down_button.config(text="Request safe Shutdown", state="normal")
+            self._request_safe_startup.set(False)
+            print("safe startup complete")
+        elif self._request_safe_shutdown.get() and (self._safe_power_down_complete.get() or self.time_elapsed() > 1.0):
+            self._safe_power_up_down_button.config(text="Request safe Startup", state="normal")
+            self._request_safe_shutdown.set(False)
+            print("safe shutdown complete")
 
     def time_elapsed(self):
         return (time.perf_counter_ns() - self._begin_time) * 1.0e-9
