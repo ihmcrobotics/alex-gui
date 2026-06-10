@@ -1,14 +1,9 @@
-from calendar import day_abbr
-from dataclasses import dataclass
-from typing import Dict
-
-from cyclonedds.core import Listener
+from dataclasses import dataclass, field
 from cyclonedds.idl.types import bounded_str, float64, int32, uint32, byte, array, sequence
 from cyclonedds.idl import IdlStruct
-from cyclonedds.sub import DataReader
 
 @dataclass
-class IMUState(IdlStruct):
+class IMUState(IdlStruct, typename="alex_msgs::msg::dds_::IMUState_"):
     sensor_name: bounded_str[32]
     quaternion: array[float64, 4]
     gyroscope: array[float64, 3]
@@ -31,23 +26,23 @@ class OneDOFJointCommand(IdlStruct):
     joint_control_type: byte = 0
 
 @dataclass
-class OneDOFJointState(IdlStruct):
+class OneDOFJointState(IdlStruct, typename="alex_msgs::msg::dds_::OneDOFJointState_"):
     joint_name: bounded_str[35]
     q: float64 = 0.0
     qd: float64 = 0.0
     tau: float64 = 0.0
     act_temp: float64 = 0.0
-    is_operational: bool = 0
+    is_operational: bool = False
 
 @dataclass
-class ForceTorqueState(IdlStruct):
+class ForceTorqueState(IdlStruct, typename="alex_msgs::msg::dds_::ForceTorqueState_"):
     sensor_name: bounded_str[32]
     force: array[float64, 3]
     torque: array[float64, 3]
     is_operational: bool
 
 @dataclass
-class AlexState(IdlStruct):
+class AlexState(IdlStruct, typename="alex_msgs::msg::dds_::AlexState_"):
     time: float64
     is_faulted: bool
     is_calibrated: bool
@@ -85,80 +80,139 @@ class AlexCommand(IdlStruct):
     robot_control_state: byte
     joint_commands: sequence[OneDOFJointCommand, 50]
     number_of_joints: uint32
+#
+# @dataclass
+# class FortRoboticsRCHandheldState(IdlStruct):
+#     # Joystick states
+#     left_joystick_x_normalized: float64
+#     left_joystick_y_normalized: float64
+#     right_joystick_x_normalized: float64
+#     right_joystick_y_normalized: float64
+#     # Trigger states
+#     left_trigger_normalized: float64
+#     right_trigger_normalized: float64
+#     # button 1-4
+#     button1_pressed: bool
+#     button2_pressed: bool
+#     button3_pressed: bool
+#     button4_pressed: bool
+#     # D-Pad
+#     button_up_pressed: bool
+#     button_down_pressed: bool
+#     button_left_pressed: bool
+#     button_right_pressed: bool
+#     # E-Stop
+#     e_stop_pressed: bool
+#     # Battery
+#     battery_level: float64
+#
+# @dataclass
+# class HardwareResources(IdlStruct):
+#     num_xml_resources: uint32
+#     num_urdf_resources: uint32
+#     xml_resources: sequence[bounded_str[32], 11]
+#     urdf_resources: sequence[bounded_str[32], 10]
+#     directory: bounded_str[32]
+#
+# @dataclass
+# class ROSDeviceStatusProvider(IdlStruct):
+#     name: bounded_str[70]
+#     is_responding: bool
+#     is_faulted: bool
+#     ethercat_state: byte
 
-@dataclass
-class FortRoboticsRCHandheldState(IdlStruct):
-    # Joystick states
-    left_joystick_x_normalized: float64
-    left_joystick_y_normalized: float64
-    right_joystick_x_normalized: float64
-    right_joystick_y_normalized: float64
-    # Trigger states
-    left_trigger_normalized: float64
-    right_trigger_normalized: float64
-    # button 1-4
-    button1_pressed: bool
-    button2_pressed: bool
-    button3_pressed: bool
-    button4_pressed: bool
-    # D-Pad
-    button_up_pressed: bool
-    button_down_pressed: bool
-    button_left_pressed: bool
-    button_right_pressed: bool
-    # E-Stop
-    e_stop_pressed: bool
-    # Battery
-    battery_level: float64
+# @dataclass
+# class AlexCommand(IdlStruct):
+#     request_auto_startup: bool = False
+#     request_auto_shutdown: bool = False
+#     request_safe_power_up: bool = False
+#     request_safe_power_down: bool = False
+#     request_enable_actuators: bool = False
+#     request_disable_actuators: bool = False
+#     clear_faults: bool = False
+#     calibrate: bool = False
+#     servo_actuators: bool = False
+#     unservo_quickly: bool = False
+#     use_requested_master_gain: bool = False
+#     requested_master_gain: float= 0.0
+#     disable_noncritical_faults: bool = False
+#     robot_control_state: byte = field(default_factory=byte)
+#     joint_commands: sequence[OneDOFJointCommand, 50] = field(default_factory=list)
+#     number_of_joints: uint32 = 0
+
+# @dataclass
+# class FortRoboticsRCHandheldState(IdlStruct):
+#     # Joystick states
+#     left_joystick_x_normalized: float64
+#     left_joystick_y_normalized: float64
+#     right_joystick_x_normalized: float64
+#     right_joystick_y_normalized: float64
+#     # Trigger states
+#     left_trigger_normalized: float64
+#     right_trigger_normalized: float64
+#     # button 1-4
+#     button1_pressed: bool
+#     button2_pressed: bool
+#     button3_pressed: bool
+#     button4_pressed: bool
+#     # D-Pad
+#     button_up_pressed: bool
+#     button_down_pressed: bool
+#     button_left_pressed: bool
+#     button_right_pressed: bool
+#     # E-Stop
+#     e_stop_pressed: bool
+#     # Battery
+#     battery_level: float64
 
 @dataclass
 class HardwareResources(IdlStruct):
-    num_xml_resources: uint32
-    num_urdf_resources: uint32
-    xml_resources: sequence[bounded_str[32], 11]
-    urdf_resources: sequence[bounded_str[32], 10]
-    directory: bounded_str[32]
+    num_xml_resources: uint32 = 0
+    num_urdf_resources: uint32 = 0
+    xml_resources: sequence[str, 11] = field(default_factory=list)
+    urdf_resources: sequence[str, 10] = field(default_factory=list)
+    directory: str = ""
 
 @dataclass
 class ROSDeviceStatusProvider(IdlStruct):
-    name: bounded_str[70]
-    is_responding: bool
-    is_faulted: bool
-    ethercat_state: byte
+    name: str = ""
+    is_responding: bool = False
+    is_faulted: bool = False
+    ethercat_state: byte = field(default_factory=byte)
 
-    under_voltage: bool
-    over_voltage: bool
-    sto_disabled: bool
-    current_short: bool
-    over_temp: bool
+    under_voltage: bool = False
+    over_voltage: bool = False
+    sto_disabled: bool = False
+    current_short: bool = False
+    over_temp: bool = False
 
 @dataclass
 class HardwareStatus(IdlStruct):
-    robot_fault: bool
-    motor_fault: bool
-    missed_deadline_fault: bool
-    working_counter_fault: bool
-    bus_over_voltage_fault: bool
-    bus_over_current_fault: bool
+    robot_fault: bool = False
+    motor_fault: bool = False
+    missed_deadline_fault: bool = False
+    working_counter_fault: bool = False
+    bus_over_voltage_fault: bool = False
+    bus_over_current_fault: bool = False
 
-    working_counter_mismatch_count: uint32
-    missed_deadlines: uint32
+    working_counter_mismatch_count: uint32 = 0
+    missed_deadlines: uint32 = 0
 
-    battery_charge_percetage: float64
-    estimated_runtime_minutes: uint32
-    bus_over_voltage_warning: bool
-    bus_over_current_warning: bool
-    battery_voltage_volts: float64
-    battery_current_amps: float64
-    battery_power_watts: float64
-    power_supply_voltage_volts: float64
-    power_supply_current_amps: float64
-    power_supply_power_watts: float64
-    motor_bus_voltage_volts: float64
-    motor_bus_current_amps: float64
-    motor_bus_power_watts: float64
+    battery_charge_percetage: float = 0.0
+    estimated_runtime_minutes: uint32 = 0
+    bus_over_voltage_warning: bool = False
+    bus_over_current_warning: bool = False
+    battery_voltage_volts: float = 0.0
+    battery_current_amps: float = 0.0
+    battery_power_watts: float = 0.0
+    power_supply_voltage_volts: float = 0.0
+    power_supply_current_amps: float = 0.0
+    power_supply_power_watts: float = 0.0
+    motor_bus_voltage_volts: float = 0.0
+    motor_bus_current_amps: float = 0.0
+    motor_bus_power_watts: float = 0.0
 
-    device_status_providers: sequence[ROSDeviceStatusProvider, 75]
+    device_status_providers: sequence[ROSDeviceStatusProvider, 75] = field(default_factory=list)
 
 
 

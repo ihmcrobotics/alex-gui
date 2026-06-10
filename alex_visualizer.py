@@ -40,10 +40,15 @@ class AlexVisualizer:
         else:
             with lock:
                 # print("reading joint positions")
+                joint_states = data["joint_states"]
                 joint_desireds = data["joint_commands"]
                 for joint in self.ghost_robot.joint_list:
                     desired = joint_desireds[joint.name]
                     joint.joint_angle(desired.q_des)
+
+                for joint in self.robot.joint_list:
+                    state = joint_states[joint.name]
+                    joint.joint_angle(state.q)
 
                 # new_positions = data["joint_desired_positions"] #random.uniform(self.ghost_robot.joint_min_angles, self.ghost_robot.joint_max_angles)
                 # print(new_positions)

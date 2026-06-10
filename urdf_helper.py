@@ -4,12 +4,13 @@ from lxml import etree
 
 ALEX_NUBFOREARMS_PARTS = ["head", "leftUpperArm", "leftFixedForearm", "rightUpperArm", "rightFixedForearm"]
 ALEX_CYCLOIDFOREARMS_PARTS = ["head", "leftUpperArm", "leftForearm", "rightUpperArm", "rightForearm"]
+PURDUE_CYCLOIDFOREARMS_PARTS = ["leftUpperArm", "leftForearm", "rightUpperArm", "rightForearm"]
 
 ALEX_FULLBODY_PARTS = ["head", "leftUpperArm", "leftForearm", "leftAbilityHandAdapter", "ability_hand_left_large", "rightUpperArm", "rightForearm", "rightAbilityHandAdapter", "ability_hand_right_large"]
 ALEX_NOARMS_PARTS = ["head"]
 
-ALEX_URDF_PATH = "ihmc-alex-sdk/alex-models/alex_description/urdf/"
-HANDS_PATH = "ihmc-alex-sdk/alex-ros2/ihmc_hands_ros2/"
+ALEX_URDF_PATH = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/"
+HANDS_PATH = "../ihmc-alex-sdk/alex-ros2/ihmc_hands_ros2/"
 
 def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[str] = [""],
                 allowed_collisions: List[str] | None = None, output_name: str = "temp"):
@@ -17,13 +18,18 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
 
     excluded_name = "IMU"
 
-    main_directory = ALEX_URDF_PATH + robot_version + '/'
+    main_directory = ALEX_URDF_PATH #+ robot_version + '/'
     hand_mesh_directory = HANDS_PATH + "meshes/"
     robot_prefix = prefix + "v1"
+
     if robot_version == "002":
         robot_prefix = prefix + "v2"
-    print(robot_prefix)
     base_urdf_file = main_directory + robot_prefix + ".lowerBody.urdf"
+    if robot_version == "purdue":
+        robot_prefix = prefix + robot_version
+        base_urdf_file = main_directory + robot_prefix + ".headTorso.urdf"
+    print(robot_prefix)
+    # base_urdf_file = main_directory + robot_prefix + ".lowerBody.urdf"
     base_urdf = etree.parse(base_urdf_file)
     base_robot = base_urdf.getroot()
 
@@ -36,7 +42,7 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
         for visual in link.findall("visual"):
             mesh_location = visual.find("geometry/mesh").get("filename")
             new_location = mesh_location.replace("package://",
-                                                 "/home/rpeterson/repos/python-repo/ihmc-alex-sdk/alex-models/")
+                                                 "../ihmc-alex-sdk/alex-models/")
             visual.find("geometry/mesh").set("filename", new_location)
     for gazebo in base_robot.findall("gazebo"):
         if (excluded_name in gazebo.get("reference", "")):
@@ -67,7 +73,7 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
                 else:
                     for visual in link.findall("visual"):
                         mesh_location = visual.find("geometry/mesh").get("filename")
-                        new_location = mesh_location.replace("package://", "/home/rpeterson/repos/python-repo/ihmc-alex-sdk/alex-models/")
+                        new_location = mesh_location.replace("package://", "../ihmc-alex-sdk/alex-models/")
                         visual.find("geometry/mesh").set("filename", new_location)
                 base_robot.append(link)
         for gazebo in curr_urdf.findall("gazebo"):
@@ -85,3 +91,7 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
     base_urdf.write(save_filepath, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 
     return save_filepath
+
+if __name__ == "__main__":
+    urdf_path = merge_urdfs("purdue", PURDUE_CYCLOIDFOREARMS_PARTS, output_name="hehe")
+    print(urdf_path)
