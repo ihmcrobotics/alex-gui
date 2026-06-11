@@ -3,7 +3,6 @@ import threading
 import time
 from typing import Dict, Any, Union
 
-import cyclonedds
 from cyclonedds.core import Listener
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.qos import Qos, Policy
@@ -14,8 +13,9 @@ from messages import AlexState, IMUState, ForceTorqueState, HardwareStatus
 
 
 class AlexCommunication:
-    def __init__(self, frequency: float = 100.0):
-        os.environ["CYCLONEDDS_URI"] = "<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"10.43.3.4\"/></Interfaces></General></Domain></CycloneDDS>"
+    def __init__(self, ip_address: str = "10.43.3.4", domain_id: int = 42,  frequency: float = 100.0):
+        os.environ["CYCLONEDDS_URI"] = ("<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" +
+                                        ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>")
         print(os.environ.get("CYCLONEDDS_URI"))
         self.alex_state = None
 
@@ -23,7 +23,7 @@ class AlexCommunication:
         self.dt = 1.0/frequency
         qos = Qos(Policy.Reliability.Reliable(max_blocking_time=1))
         qos.reliability = Policy.Reliability.Reliable
-        domain_participant = DomainParticipant(get_rtps_domain_id(), qos)
+        domain_participant = DomainParticipant(domain_id, qos)
         alex_state_topic = Topic(domain_participant, "rt/alex_state", AlexState)
         # alex_status_topic = Topic(domain_participant, "rt/hardware_status", HardwareStatus)
         self.state_listener = AlexStateListener()

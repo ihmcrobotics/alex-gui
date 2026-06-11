@@ -34,8 +34,10 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
     base_robot = base_urdf.getroot()
 
     for joint in base_robot.findall("joint"):
-        if (excluded_name in joint.get("name", "")):
+        if excluded_name in joint.get("name", ""):
             base_robot.remove(joint)
+        if joint.get("name", "") in fixed_joints:
+            joint.set("type", "fixed")
     for link in base_robot.findall("link"):
         if (excluded_name in link.get("name", "")):
             base_robot.remove(link)
@@ -93,5 +95,5 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
     return save_filepath
 
 if __name__ == "__main__":
-    urdf_path = merge_urdfs("purdue", PURDUE_CYCLOIDFOREARMS_PARTS, output_name="hehe")
+    urdf_path = merge_urdfs("purdue", PURDUE_CYCLOIDFOREARMS_PARTS, fixed_joints=["PEDESTAL_F"], output_name="hehe")
     print(urdf_path)

@@ -218,8 +218,8 @@ class AlexControlGUI:
 
     def update_gui(self):
         self.control_panel.update()
-        self.update_auto_startup_shutdown()
-        self.update_safe_power_up_down()
+        self._update_auto_startup_shutdown()
+        self._update_safe_power_up_down()
 
     def _reset_sliders(self, joint_states: List[OneDOFJointState]):
         for state in joint_states:
@@ -324,7 +324,7 @@ class AlexControlGUI:
                 print("Shutting down midway through startup")
         self._begin_time = time.perf_counter_ns()
 
-    def update_auto_startup_shutdown(self):
+    def _update_auto_startup_shutdown(self):
         if self._request_auto_startup.get() and (self._auto_startup_complete.get() or self.time_elapsed() > 1.0):
             self._auto_startup_shutdown_button.config(text="Request Auto Shutdown", state="normal")
             self._request_auto_startup.set(False)
@@ -358,7 +358,7 @@ class AlexControlGUI:
                 print("Shutting down midway through startup")
         self._begin_time = time.perf_counter_ns()
 
-    def update_safe_power_up_down(self, power_up_down_complete):
+    def _update_safe_power_up_down(self):
         if self._request_safe_startup.get() and (self._safe_power_up_complete.get() or self.time_elapsed() > 1.0):
             self._safe_power_up_down_button.config(text="Request safe Shutdown", state="normal")
             self._request_safe_startup.set(False)

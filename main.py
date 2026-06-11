@@ -20,7 +20,7 @@ def main(urdf_path: str):
     shared_data = {"joint_commands": {name: OneDOFJointCommand(joint_name=name) for name in robot.joint_names},
                    "joint_states": {},
                    "hardware_status": None,
-                   "alex_state": None,
+                   "alex_state": AlexState(),
                    "alex_command": alex_command}
 
     visual_thread = threading.Thread(target=robot_visualizer.run_visualizer, args=(thread_lock, shared_data), daemon=True)
