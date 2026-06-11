@@ -18,11 +18,11 @@ class OneDOFJointCommand(IdlStruct, typename="alex_msgs::msg::dds_::OneDOFJointC
     q_des: float64 = 0.0
     qd_des: float64 = 0.0
     tau_des: float64 = 0.0
-    stiffness: float64 = math.nan
-    damping: float64 = math.nan
-    max_position_error: float64 = math.nan
-    max_velocity_error: float64 = math.nan
-    max_torque: float64 = math.nan
+    stiffness: float64 = 0.0
+    damping: float64 = 0.0
+    max_position_error: float64 = 0.0
+    max_velocity_error: float64 = 0.0
+    max_torque: float64 = 0.0
     enable: bool = False
     joint_control_type: byte = 0
 

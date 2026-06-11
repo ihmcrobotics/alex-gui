@@ -43,11 +43,19 @@ def _initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict
 
 def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[str],
                                      joint_max_torque: List[float]) -> Dict[str, Dict]:
-    joint_max_torque = {joint: DoubleVar(value=max_torque) for joint, max_torque in zip(joint_names, joint_max_torque)}
-    joint_stiffness = {joint: DoubleVar() for joint in joint_names}
-    joint_damping = {joint: DoubleVar() for joint in joint_names}
-    joint_max_pos_error = {joint: DoubleVar() for joint in joint_names}
-    joint_max_vel_error = {joint: DoubleVar() for joint in joint_names}
+    joint_max_torques = {}
+    joint_stiffness = {}
+    joint_damping = {}
+    joint_max_pos_error = {}
+    joint_max_vel_error = {}
+    for i in range(len(joint_names)):
+        name = joint_names[i]
+        max_torque = joint_max_torque[i]
+        joint_max_torques[name] = DoubleVar(value=max_torque)
+        joint_stiffness[name] = DoubleVar(value=max_torque/math.pi)
+        joint_damping[name] = DoubleVar(value=max_torque/(math.pi*10.0))
+        joint_max_pos_error[name] = DoubleVar(value=math.pi)
+        joint_max_vel_error[name] = DoubleVar(value=math.pi/10.0)
 
     impedance_tab = Frame(notebook)
     # impedance_tab.grid(row=0, column=0)
@@ -75,7 +83,7 @@ def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[s
         ttk.Entry(impedance_tab, textvariable=joint_damping[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
 
         ttk.Label(limit_tab, text=joint_name).grid(row=joint_count, column=0, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(limit_tab, textvariable=joint_max_torque[joint_name]).grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
+        ttk.Entry(limit_tab, textvariable=joint_max_torques[joint_name]).grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
         ttk.Entry(limit_tab, textvariable=joint_max_pos_error[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
         ttk.Entry(limit_tab, textvariable=joint_max_vel_error[joint_name]).grid(row=joint_count, column=3, padx=horiz_pad, pady=vert_pad)
         joint_count += 1
@@ -85,7 +93,7 @@ def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[s
 
     parameter_dict = {"stiffness": joint_stiffness,
                       "damping": joint_damping,
-                      "max_torque": joint_max_torque,
+                      "max_torque": joint_max_torques,
                       "max_pos_error": joint_max_pos_error,
                       "max_vel_error": joint_max_vel_error}
     return parameter_dict
@@ -232,6 +240,7 @@ class AlexControlGUI:
     def update_gui(self):
         self._update_auto_startup_shutdown()
         self._update_safe_power_up_down()
+        self._run_servo()
         self.control_panel.update()
 
 
@@ -273,6 +282,7 @@ class AlexControlGUI:
         alex_command.request_auto_shutdown = self._request_auto_shutdown.get()
         alex_command.number_of_joints = len(self.joint_names)
         alex_command.clear_faults = self._clear_faults.get()
+        self._clear_faults.set(False)
         alex_command.request_enable_actuators = self._enable_actuators.get()
         alex_command.request_disable_actuators = not self._enable_actuators.get()
         alex_command.requested_master_gain = self._master_gain.get()
