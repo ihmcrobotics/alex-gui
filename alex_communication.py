@@ -5,17 +5,17 @@ from typing import Dict, Any, Union
 
 from cyclonedds.core import Listener
 from cyclonedds.domain import DomainParticipant
+from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.qos import Qos, Policy
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.topic import Topic
 
-from messages import AlexState, IMUState, ForceTorqueState, HardwareStatus
+from messages import AlexState, IMUState, ForceTorqueState, HardwareStatus, AlexCommand
 
 
 class AlexCommunication:
     def __init__(self, ip_address: str = "10.43.3.4", domain_id: int = 42,  frequency: float = 100.0):
-        os.environ["CYCLONEDDS_URI"] = ("<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" +
-                                        ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>")
+        os.environ["CYCLONEDDS_URI"] = "<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" + ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>"
         print(os.environ.get("CYCLONEDDS_URI"))
         self.alex_state = None
 
@@ -25,11 +25,14 @@ class AlexCommunication:
         qos.reliability = Policy.Reliability.Reliable
         domain_participant = DomainParticipant(domain_id, qos)
         alex_state_topic = Topic(domain_participant, "rt/alex_state", AlexState)
+        alex_command_topic = Topic(domain_participant, "rt/alex_command", AlexCommand)
         # alex_status_topic = Topic(domain_participant, "rt/hardware_status", HardwareStatus)
         self.state_listener = AlexStateListener()
         # self.status_listener = HardwareStatusListener()
         subscriber = Subscriber(domain_participant)
-        self.alex_state_reader = DataReader(subscriber, alex_state_topic, qos, listener=self.state_listener)
+        self._alex_state_reader = DataReader(subscriber, alex_state_topic, qos, listener=self.state_listener)
+        publisher = Publisher(domain_participant)
+        self._alex_command_writer = DataWriter(publisher, alex_command_topic, qos)
         # self.hardware_status_reader = DataReader(subscriber, alex_status_topic, qos, listener=self.status_listener)
 
     def run_communication(self, lock: Union[threading.Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
@@ -38,6 +41,7 @@ class AlexCommunication:
                 curr_time = time.perf_counter_ns()
                 # print("reader guid:", self.alex_state_reader.guid)
                 # print("matched:", self.alex_state_reader.get_matched_publications())
+                alex_command = None
                 if lock is not None:
                     with lock:
                         if self.state_listener.alex_state is not None:
@@ -50,6 +54,10 @@ class AlexCommunication:
                             # shared_data["hardware_status"] = self.status_listener.hardware_status
                             # print(self.status_listener.hardware_status)
                             # print("updated state")
+                            alex_command = shared_data["alex_command"]
+                if alex_command is not None:
+                    self._alex_command_writer.write(alex_command)
+                    # print("sent alex command")
                 elapsed_time = (curr_time - time.perf_counter_ns()) * 1.0e-9
                 if elapsed_time < self.dt:
                     time.sleep(self.dt - elapsed_time)

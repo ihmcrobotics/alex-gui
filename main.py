@@ -13,9 +13,9 @@ def main(urdf_path: str):
     robot_visualizer = AlexVisualizer(urdf_path)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot)
-    communication = AlexCommunication()
+    communication = AlexCommunication("10.43.3.6")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
-    alex_command = AlexCommand(joint_commands=joint_commands)
+    alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
     shared_data = {"joint_commands": {name: OneDOFJointCommand(joint_name=name) for name in robot.joint_names},
                    "joint_states": {},
@@ -36,5 +36,5 @@ def main(urdf_path: str):
 
 if __name__ == '__main__':
     logging.getLogger("skrobot").setLevel(logging.ERROR)
-    path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe.urdf"
+    path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe_full.urdf"
     main(path)

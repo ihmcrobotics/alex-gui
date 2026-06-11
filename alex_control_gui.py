@@ -1,4 +1,5 @@
 import time
+from tkinter.ttk import Combobox
 from typing import List, Dict, Literal, Union, Any
 
 import tkinter as tk
@@ -13,6 +14,13 @@ from rich_click.decorators import command
 from skrobot.model import RobotModel
 
 from messages import OneDOFJointCommand, OneDOFJointState, AlexCommand, AlexState
+
+DO_NOTHING = "Do Nothing"
+HOLD_POSITION = "Hold Position"
+USER_CONTROL = "User Control"
+robot_control_state = {DO_NOTHING: 0,
+                       HOLD_POSITION: 1,
+                       USER_CONTROL: 2}
 
 
 def _initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict[str, DoubleVar],
@@ -136,8 +144,11 @@ class AlexControlGUI:
         self._calibrate = BooleanVar(value=False)
         self._servo_robot = BooleanVar(value=False)
         self._unservo_quickly = BooleanVar(value=False)
-        self._use_requested_master_gain = BooleanVar(value=False)
+        self._use_requested_master_gain = BooleanVar(value=True)
         self._master_gain = DoubleVar(value=0.0)
+        self._servo_timer = 0.0
+        self._servo_initial_value = 0.0
+        self._robot_control_state = StringVar(value="Do Nothing")
 
         self._auto_startup_shutdown_button = Button(main_operation_frame, text="Request Auto Startup", command=self._run_auto_startup_shutdown)
         self._auto_startup_shutdown_button.grid(row=0, column=0, sticky="w")
@@ -149,12 +160,14 @@ class AlexControlGUI:
         ttk.Checkbutton(secondary_operation_frame, text="Servo Robot", variable=self._servo_robot).grid(row=3, column=0, sticky="w")
         Button(secondary_operation_frame, text="Clear Faults", command=lambda: self._clear_faults.set(True)).grid(row=1, column=0, sticky="w")
         self._master_gain_display = Label(secondary_operation_frame, text="Master Gain: 0.0")
-        self._master_gain_display.grid(row=3, column=0, sticky="w")
+        self._master_gain_display.grid(row=4, column=0, sticky="w")
         Scale(secondary_operation_frame, variable=self._master_gain, orient='horizontal', from_=0.0, to=1.0,
               resolution=0.01, showvalue=False,
-              command=lambda value: self._master_gain_display.config(text="Master Gain: " + str(value))).grid(row=3,
+              command=lambda value: self._master_gain_display.config(text="Master Gain: " + str(value))).grid(row=4,
                                                                                                               column=1,
                                                                                                               sticky="w")
+        Label(secondary_operation_frame, text="Control State: ").grid(row=5, column=0, sticky="w")
+        Combobox(secondary_operation_frame, values=(DO_NOTHING, USER_CONTROL), textvariable=self._robot_control_state).grid(row=5, column=1, sticky="w")
 
     def _initialize_control_buttons(self):
         control_button_frame = LabelFrame(self.content, text="Control")
@@ -188,7 +201,7 @@ class AlexControlGUI:
         self._safe_power_up_complete = BooleanVar(value=False)
         self._safe_power_down_complete = BooleanVar(value=False)
         self._current_ll_master_gain = DoubleVar(value=0.0)
-        self._auto_shutdown_complete = BooleanVar(value=False)
+        self._auto_shutdown_complete = BooleanVar(value=True)
         self._auto_startup_complete = BooleanVar(value=False)
 
         ttk.Label(self.robot_state_frame, text="Time: ").grid(row=0, column=0, sticky="w")
@@ -217,9 +230,10 @@ class AlexControlGUI:
 
 
     def update_gui(self):
-        self.control_panel.update()
         self._update_auto_startup_shutdown()
         self._update_safe_power_up_down()
+        self.control_panel.update()
+
 
     def _reset_sliders(self, joint_states: List[OneDOFJointState]):
         for state in joint_states:
@@ -231,11 +245,11 @@ class AlexControlGUI:
 
     def run_gui(self, lock: Union[Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         while self.window_active:
-            self.update_gui()
             if lock is not None and shared_data is not None:
                 with lock:
                     self._read_state(shared_data["alex_state"])
                     self._write_command(shared_data["alex_command"])
+            self.update_gui()
             time.sleep(0.01)
 
     def _read_state(self, alex_state: AlexState):
@@ -261,7 +275,9 @@ class AlexControlGUI:
         alex_command.clear_faults = self._clear_faults.get()
         alex_command.request_enable_actuators = self._enable_actuators.get()
         alex_command.request_disable_actuators = not self._enable_actuators.get()
-        alex_command.requested_master_gain = 0.0
+        alex_command.requested_master_gain = self._master_gain.get()
+        alex_command.use_requested_master_gain = True
+        alex_command.robot_control_state = robot_control_state[self._robot_control_state.get()]
 
         if self._send_desireds.get() or self._send_desireds_continuously.get():
             self._update_desireds(alex_command.joint_commands)
@@ -273,11 +289,18 @@ class AlexControlGUI:
             command.q_des = self._joint_positions[name].get()
             command.qd_des = 0.0
             command.taw_des = 0.0
-            command.stiffness = self._joint_parameter_dict["stiffness"][name].get()
-            command.damping = self._joint_parameter_dict["damping"][name].get()
-            command.max_torque = self._joint_parameter_dict["max_torque"][name].get()
-            command.max_position_error = self._joint_parameter_dict["max_pos_error"][name].get()
-            command.max_velocity_error = self._joint_parameter_dict["max_vel_error"][name].get()
+            if self._use_custom_impedance.get():
+                command.stiffness = self._joint_parameter_dict["stiffness"][name].get()
+                command.damping = self._joint_parameter_dict["damping"][name].get()
+                command.max_torque = self._joint_parameter_dict["max_torque"][name].get()
+                command.max_position_error = self._joint_parameter_dict["max_pos_error"][name].get()
+                command.max_velocity_error = self._joint_parameter_dict["max_vel_error"][name].get()
+            else:
+                command.stiffness = math.nan
+                command.damping = math.nan
+                command.max_torque = math.nan
+                command.max_position_error = math.nan
+                command.max_velocity_error = math.nan
 
     def _check_limits(self, joint_name: str):
         requested_max_torque = self._joint_parameter_dict["max_torque"][joint_name]
@@ -299,43 +322,62 @@ class AlexControlGUI:
         if damping > 0.0:
             max_velocity_error.set(min(max_velocity_error.get(), max_torque / damping))
 
+    def _run_servo(self):
+        if (self._servo_robot.get() and self._master_gain.get() == 0.0) or self._master_gain.get() > 0.0:
+            self._servo_timer = time.time()
+            self._servo_initial_value = self._current_ll_master_gain.get()
+        servo_time_elapsed = time.time() - self._servo_timer
+
+        servo_ratio = servo_time_elapsed / 2.0
+        if servo_ratio <= 1.0:
+            self._master_gain.set(servo_ratio if self._servo_robot.get() else self._servo_initial_value * (1.0 - servo_ratio))
+
 
     def _run_auto_startup_shutdown(self):
-        print("Attempting")
+        print(self._request_auto_startup.get(), self._request_auto_shutdown.get())
+        print(self._auto_startup_complete.get(), self._auto_shutdown_complete.get())
         if not self._request_auto_startup.get() and not self._request_auto_shutdown.get():
             if not self._auto_shutdown_complete.get() and not self._auto_startup_complete.get():
                 self._auto_startup_shutdown_button.config(text="Starting up, press to stop")
                 self._request_auto_startup.set(True)
                 self._request_auto_shutdown.set(False)
+                print("Requesting Auto Startup")
             elif self._auto_startup_complete.get():
                 self._auto_startup_shutdown_button.config(text="Shutting down", state="disabled")
                 self._request_auto_shutdown.set(True)
                 self._auto_startup_complete.set(False)
                 print("Shutting down")
-            elif self._auto_shutdown_complete:
+            elif self._auto_shutdown_complete.get():
                 self._auto_startup_shutdown_button.config(text="Starting up, press to stop")
                 self._request_auto_startup.set(True)
                 self._auto_shutdown_complete.set(False)
                 print("Starting up")
-            elif self._request_auto_startup.get():
-                self._auto_startup_shutdown_button.config(text="Shutting down", state="disabled")
-                self._request_auto_shutdown.set(True)
-                self._request_auto_startup.set(False)
-                print("Shutting down midway through startup")
+        elif self._request_auto_startup.get():
+            self._auto_startup_shutdown_button.config(text="Shutting down", state="disabled")
+            self._request_auto_shutdown.set(True)
+            self._request_auto_startup.set(False)
+            print("Shutting down midway through startup")
+        if self._request_auto_startup.get():
+            self._reset_joint_positions.set(True)
         self._begin_time = time.perf_counter_ns()
 
     def _update_auto_startup_shutdown(self):
-        if self._request_auto_startup.get() and (self._auto_startup_complete.get() or self.time_elapsed() > 1.0):
+        if self._request_auto_startup.get() and self._auto_startup_complete.get():
             self._auto_startup_shutdown_button.config(text="Request Auto Shutdown", state="normal")
             self._request_auto_startup.set(False)
+            self._enable_actuators.set(True)
+            self._servo_robot.set(True)
+            self._robot_control_state.set("User Control")
             print("auto startup complete")
-        elif self._request_auto_shutdown.get() and (self._auto_shutdown_complete.get() or self.time_elapsed() > 1.0):
+        elif self._request_auto_shutdown.get() and self._auto_shutdown_complete.get():
             self._auto_startup_shutdown_button.config(text="Request Auto Startup", state="normal")
             self._request_auto_shutdown.set(False)
+            self._enable_actuators.set(False)
+            self._servo_robot.set(False)
+            self._robot_control_state.set("Do Nothing")
             print("auto shutdown complete")
 
     def _run_safe_power_up_down(self):
-        print("Attempting")
         if not self._request_safe_startup.get() and not self._request_safe_shutdown.get():
             if not self._safe_power_down_complete.get() and not self._safe_power_up_complete.get():
                 self._safe_power_up_down_button.config(text="Starting up, press to stop")
