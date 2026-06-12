@@ -1,6 +1,7 @@
 import time
 from tkinter.ttk import Combobox
 from typing import List, Dict, Literal, Union, Any
+from poses import *
 
 import tkinter as tk
 from tkinter import *
@@ -120,6 +121,7 @@ class AlexControlGUI:
         self.joint_position_frame.grid(row=1, column=1, rowspan=4, sticky="n")
         _initialize_joint_position_sliders(self.joint_position_frame, self._joint_positions, robot.joint_names,
                                            lower_limits=robot.joint_min_angles, upper_limits=robot.joint_max_angles)
+        self._initialize_pose_buttons()
 
         parameter_notebook = ttk.Notebook(self.content)
         parameter_notebook.grid(row=1, column=2, rowspan=15, sticky="n")
@@ -235,12 +237,57 @@ class AlexControlGUI:
         ttk.Checkbutton(self.robot_state_frame, text="Auto Startup Complete",
                         variable=self._auto_startup_complete).grid(row=6, column=0, sticky="w")
 
+    def _initialize_pose_buttons(self):
+        pose_frame = LabelFrame(self.content, text="Poses", borderwidth=5, relief="ridge")
+        pose_frame.grid(row=3, column=0, sticky="n")
+        self._home_pose = BooleanVar(value=False)
+        self._arms_up_pose = BooleanVar(value=False)
+        self._pose_running = False
+        self._pose_start_time = time.time()
+        self._pose_duration = 10.0
+        self._pose_joints = []
+        self._initial_positions = [self._joint_positions[name].get() for name in self.joint_names]
+        self._final_positions = [self._joint_positions[name].get() for name in self.joint_names]
+        self._curr_positions = [self._joint_positions[name].get() for name in self.joint_names]
+
+        Button(pose_frame, text="Home", command=lambda: self._home_pose.set(True)).grid(row=0, column=0, sticky="w")
+        Button(pose_frame, text="Arms Up", command=lambda: self._arms_up_pose.set(True)).grid(row=0, column=1, sticky="w")
+
+    def _run_poses(self):
+        if self._home_pose.get() or self._arms_up_pose.get():
+            self._send_desireds_continuously.set(False)
+            if not self._pose_running:
+                self._pose_start_time = time.time()
+                self._pose_running = True
+                if self._home_pose.get():
+                    self._pose_joints = home_pose_joints
+                    self._final_positions = home_pose_values
+                elif self._arms_up_pose.get():
+                    self._pose_joints = arms_up_pose_joints
+                    self._final_positions = arms_up_pose_values
+                self._initial_positions = [self._joint_positions[name].get() for name in self._pose_joints]
+                print("Starting move to home pose")
+            else:
+                elapsed_time = time.time() - self._pose_start_time
+                if elapsed_time < self._pose_duration:
+                    update_pose_command(elapsed_time, self._pose_duration, self._initial_positions, self._final_positions, self._curr_positions)
+                    for i in range(len(self._final_positions)):
+                        self._joint_positions[self._pose_joints[i]].set(self._curr_positions[i])
+                else:
+                    for i in range(len(self._final_positions)):
+                        self._joint_positions[self._pose_joints[i]].set(self._final_positions[i])
+                    self._pose_running = False
+                    self._home_pose.set(False)
+                    self._arms_up_pose.set(False)
+                    print("Completed move to home pose")
+                self._send_desireds.set(True)
 
 
     def update_gui(self):
         self._update_auto_startup_shutdown()
         self._update_safe_power_up_down()
         self._run_servo()
+        self._run_poses()
         self.control_panel.update()
 
 
@@ -429,6 +476,11 @@ class AlexControlGUI:
             return
         self.window_active = False
         print("Window closed, shutting down")
+
+def update_pose_command(run_time: float, duration: float, initial_positions: List[float], final_positions: List[float], desired_positions: List[float]):
+    for joint in range(len(final_positions)):
+        desired_positions[joint] = initial_positions[joint] + run_time / duration * (final_positions[joint] - initial_positions[joint])
+
 
 
 
