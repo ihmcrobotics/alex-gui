@@ -51,8 +51,6 @@ class AlexVisualizer:
                     for joint in self.robot.joint_list:
                         state = joint_states[joint.name]
                         joint.joint_angle(state.q)
-                else:
-                    print("No data yet")
 
                 # new_positions = data["joint_desired_positions"] #random.uniform(self.ghost_robot.joint_min_angles, self.ghost_robot.joint_max_angles)
                 # print(new_positions)

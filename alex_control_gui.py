@@ -25,21 +25,17 @@ robot_control_state = {DO_NOTHING: 0,
 
 
 def _initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict[str, DoubleVar],
-                                       joint_names: List[str], type_: Literal["Position", "Other"] = 'Position',
+                                       joint_names: List[str],
                                        lower_limits: List[float] | None = None,
                                        upper_limits: List[float] | None = None) -> None:
     for i in range(len(joint_names)):
         joint_name = joint_names[i]
         ttk.Label(joint_frame, text=joint_name).grid(row=i*2 + 1, column=0, sticky="E")
-        if type_ == "Position":
-            slider = Scale(joint_frame, length=200, orient='horizontal', from_=lower_limits[i], to=upper_limits[i],
-                           resolution=0.0001, variable=joint_dict[joint_name])
+        slider = Scale(joint_frame, length=200, orient='horizontal', from_=lower_limits[i], to=upper_limits[i],
+                       resolution=0.0001, variable=joint_dict[joint_name])
 
 
-            slider.grid(row=i*2, column=1, rowspan=2)
-        else:
-            entry = ttk.Entry(joint_frame, textvariable=joint_dict[joint_name])
-            entry.grid(row=i, column=1)
+        slider.grid(row=i*2, column=1, rowspan=2)
 
 
 def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[str],
@@ -153,9 +149,10 @@ class AlexControlGUI:
         self._clear_faults = BooleanVar(value=False)
         self._calibrate = BooleanVar(value=False)
         self._servo_robot = BooleanVar(value=False)
+        self._high_level_servo_complete = True
         self._unservo_quickly = BooleanVar(value=False)
         self._use_requested_master_gain = BooleanVar(value=True)
-        self._master_gain = DoubleVar(value=0.0)
+        self._requested_master_gain = DoubleVar(value=0.0)
         self._servo_timer = 0.0
         self._servo_initial_value = 0.0
         self._robot_control_state = StringVar(value="Do Nothing")
@@ -167,15 +164,14 @@ class AlexControlGUI:
         self._safe_power_up_down_button = Button(secondary_operation_frame, text="Request Safe Power Up", command=self._run_auto_startup_shutdown)
         self._safe_power_up_down_button.grid(row=0, column=0, sticky="w", columnspan=2)
         ttk.Checkbutton(secondary_operation_frame, text="Enable Actuators", variable=self._enable_actuators).grid(row=2, column=0, sticky="w")
-        ttk.Checkbutton(secondary_operation_frame, text="Servo Robot", variable=self._servo_robot).grid(row=3, column=0, sticky="w")
+        self._servo_robot_button = Button(secondary_operation_frame, text="Servo Robot", command=self._start_servo_unservo)
+        self._servo_robot_button.grid(row=3, column=0, sticky="w")
         Button(secondary_operation_frame, text="Clear Faults", command=lambda: self._clear_faults.set(True)).grid(row=1, column=0, sticky="w")
-        self._master_gain_display = Label(secondary_operation_frame, text="Master Gain: 0.0")
+        self._master_gain_display = Label(secondary_operation_frame, text="Requested Master Gain: 0.0")
         self._master_gain_display.grid(row=4, column=0, sticky="w")
-        Scale(secondary_operation_frame, variable=self._master_gain, orient='horizontal', from_=0.0, to=1.0,
-              resolution=0.01, showvalue=False,
-              command=lambda value: self._master_gain_display.config(text="Master Gain: " + str(value))).grid(row=4,
-                                                                                                              column=1,
-                                                                                                              sticky="w")
+        self._master_gain_scale = Scale(secondary_operation_frame, variable=self._requested_master_gain,
+                                        orient='horizontal', from_=0.0, to=1.0, resolution=0.01, showvalue=False)
+        self._master_gain_scale.grid(row=4, column=1, sticky="w")
         Label(secondary_operation_frame, text="Control State: ").grid(row=5, column=0, sticky="w")
         Combobox(secondary_operation_frame, values=(DO_NOTHING, USER_CONTROL), textvariable=self._robot_control_state).grid(row=5, column=1, sticky="w")
 
@@ -286,7 +282,8 @@ class AlexControlGUI:
     def update_gui(self):
         self._update_auto_startup_shutdown()
         self._update_safe_power_up_down()
-        self._run_servo()
+        if not self._high_level_servo_complete:
+            self._run_servo_unservo()
         self._run_poses()
         self.control_panel.update()
 
@@ -332,7 +329,7 @@ class AlexControlGUI:
         self._clear_faults.set(False)
         alex_command.request_enable_actuators = self._enable_actuators.get()
         alex_command.request_disable_actuators = not self._enable_actuators.get()
-        alex_command.requested_master_gain = self._master_gain.get()
+        alex_command.requested_master_gain = self._requested_master_gain.get()
         alex_command.use_requested_master_gain = True
         alex_command.robot_control_state = robot_control_state[self._robot_control_state.get()]
 
@@ -379,15 +376,40 @@ class AlexControlGUI:
         if damping > 0.0:
             max_velocity_error.set(min(max_velocity_error.get(), max_torque / damping))
 
-    def _run_servo(self):
-        if (self._servo_robot.get() and self._master_gain.get() == 0.0) or self._master_gain.get() > 0.0:
+    def _start_servo_unservo(self):
+        if self._servo_robot.get():
+            self._servo_robot_button.config(text="Unservoing Robot", state="disabled")
+            self._servo_robot.set(False)
+            self._high_level_servo_complete = False
             self._servo_timer = time.time()
             self._servo_initial_value = self._current_ll_master_gain.get()
-        servo_time_elapsed = time.time() - self._servo_timer
+        elif self._high_level_servo_complete:
+            self._servo_robot_button.config(text="Servoing Robot, press to cancel", state="normal")
+            self._servo_initial_value = 0.0
+            self._servo_timer = time.time()
+            self._high_level_servo_complete = False
 
-        servo_ratio = servo_time_elapsed / 2.0
-        if servo_ratio <= 1.0:
-            self._master_gain.set(servo_ratio if self._servo_robot.get() else self._servo_initial_value * (1.0 - servo_ratio))
+
+    def _run_servo_unservo(self):
+        servo_ratio = (time.time() - self._servo_timer) / 2.0
+        print(servo_ratio)
+        if servo_ratio < 1.0:
+            if self._servo_robot.get():
+                # self._master_gain_scale.set(servo_ratio)
+                self._requested_master_gain.set(servo_ratio)
+            else:
+                # self._master_gain_scale.set(self._servo_initial_value* (1.0 - servo_ratio))
+                self._requested_master_gain.set(self._servo_initial_value * (1.0 - servo_ratio))
+            print(self._requested_master_gain.get())
+        else:
+            self._high_level_servo_complete = True
+            if self._servo_robot.get():
+                self._servo_robot_button.config(text="Unservo Robot", state="normal")
+                self._requested_master_gain.set(1.0)
+            else:
+                self._servo_robot_button.config(text="Servo Robot", state="normal")
+                self._requested_master_gain.set(0.0)
+
 
 
     def _run_auto_startup_shutdown(self):
@@ -423,14 +445,13 @@ class AlexControlGUI:
             self._auto_startup_shutdown_button.config(text="Request Auto Shutdown", state="normal")
             self._request_auto_startup.set(False)
             self._enable_actuators.set(True)
-            self._servo_robot.set(True)
+            self._start_servo_unservo()
             self._robot_control_state.set("User Control")
             print("auto startup complete")
         elif self._request_auto_shutdown.get() and self._auto_shutdown_complete.get():
             self._auto_startup_shutdown_button.config(text="Request Auto Startup", state="normal")
             self._request_auto_shutdown.set(False)
             self._enable_actuators.set(False)
-            self._servo_robot.set(False)
             self._robot_control_state.set("Do Nothing")
             print("auto shutdown complete")
 
@@ -476,15 +497,6 @@ class AlexControlGUI:
             return
         self.window_active = False
         print("Window closed, shutting down")
-
-def update_pose_command(run_time: float, duration: float, initial_positions: List[float], final_positions: List[float], desired_positions: List[float]):
-    for joint in range(len(final_positions)):
-        desired_positions[joint] = initial_positions[joint] + run_time / duration * (final_positions[joint] - initial_positions[joint])
-
-
-
-
-
 
 
 import threading

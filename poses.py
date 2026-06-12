@@ -1,3 +1,4 @@
+from typing import List
 
 home_pose_values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 home_pose_joints = [
@@ -38,3 +39,7 @@ arms_up_pose_joints = [
     "NECK_Z",
     "NECK_Y"
 ]
+
+def update_pose_command(run_time: float, duration: float, initial_positions: List[float], final_positions: List[float], desired_positions: List[float]):
+    for joint in range(len(final_positions)):
+        desired_positions[joint] = initial_positions[joint] + run_time / duration * (final_positions[joint] - initial_positions[joint])
