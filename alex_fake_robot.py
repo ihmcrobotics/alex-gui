@@ -1,5 +1,5 @@
 # from alex_communication2 import AlexCommunication
-from alex_visualizer import AlexVisualizer
+from alex_robot_visualizer import AlexVisualizer
 from alex_control_gui import AlexControlGUI
 import threading
 import time

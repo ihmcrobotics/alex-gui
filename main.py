@@ -3,7 +3,7 @@ from threading import Lock
 
 from alex_communication import AlexCommunication
 from alex_control_gui import AlexControlGUI
-from alex_visualizer import AlexVisualizer
+from alex_robot_visualizer import AlexVisualizer
 from messages import OneDOFJointCommand, OneDOFJointState, AlexState, AlexCommand
 import logging
 
@@ -13,7 +13,7 @@ def main(urdf_path: str):
     robot_visualizer = AlexVisualizer(urdf_path)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot)
-    communication = AlexCommunication("10.43.3.6")
+    communication = AlexCommunication("10.43.3.6") #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 

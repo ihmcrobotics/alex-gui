@@ -2,17 +2,13 @@ import time
 from tkinter.ttk import Combobox
 from typing import List, Dict, Literal, Union, Any
 from poses import *
-
-import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from threading import Lock
-from copy import deepcopy
 import math
-
-import numpy as np
-from rich_click.decorators import command
 from skrobot.model import RobotModel
+from alex_data_gui import *
+from arm_control_gui import *
 
 from messages import OneDOFJointCommand, OneDOFJointState, AlexCommand, AlexState
 
@@ -22,78 +18,6 @@ USER_CONTROL = "User Control"
 robot_control_state = {DO_NOTHING: 0,
                        HOLD_POSITION: 1,
                        USER_CONTROL: 2}
-
-
-def _initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict[str, DoubleVar],
-                                       joint_names: List[str],
-                                       lower_limits: List[float] | None = None,
-                                       upper_limits: List[float] | None = None) -> None:
-    for i in range(len(joint_names)):
-        joint_name = joint_names[i]
-        ttk.Label(joint_frame, text=joint_name).grid(row=i*2 + 1, column=0, sticky="E")
-        slider = Scale(joint_frame, length=200, orient='horizontal', from_=lower_limits[i], to=upper_limits[i],
-                       resolution=0.0001, variable=joint_dict[joint_name])
-
-
-        slider.grid(row=i*2, column=1, rowspan=2)
-
-
-def _initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[str],
-                                     joint_max_torque: List[float]) -> Dict[str, Dict]:
-    joint_max_torques = {}
-    joint_stiffness = {}
-    joint_damping = {}
-    joint_max_pos_error = {}
-    joint_max_vel_error = {}
-    for i in range(len(joint_names)):
-        name = joint_names[i]
-        max_torque = joint_max_torque[i]
-        joint_max_torques[name] = DoubleVar(value=max_torque)
-        joint_stiffness[name] = DoubleVar(value=max_torque/math.pi)
-        joint_damping[name] = DoubleVar(value=max_torque/(math.pi*10.0))
-        joint_max_pos_error[name] = DoubleVar(value=math.pi)
-        joint_max_vel_error[name] = DoubleVar(value=math.pi/10.0)
-
-    impedance_tab = Frame(notebook)
-    # impedance_tab.grid(row=0, column=0)
-    ttk.Label(impedance_tab, text="Joint").grid(row=0, column=0)
-    ttk.Label(impedance_tab, text="Stiffness").grid(row=0, column=1)
-    ttk.Label(impedance_tab, text="Damping").grid(row=0, column=2)
-
-    # stiffness_frame = ttk.LabelFrame(impedance_tab, text="Stiffness")
-    # stiffness_frame.grid(row=0, column=1)
-    # damping_frame = ttk.LabelFrame(impedance_tab, text="Damping")
-    # damping_frame.grid(row=0, column=2)
-
-    limit_tab = Frame(notebook)
-    ttk.Label(limit_tab, text="Joint").grid(row=0, column=0)
-    ttk.Label(limit_tab, text="Max Torque").grid(row=0, column=1)
-    ttk.Label(limit_tab, text="Max Pos Error").grid(row=0, column=2)
-    ttk.Label(limit_tab, text="Max Vel Error").grid(row=0, column=3)
-    joint_count = 1
-
-    horiz_pad = 5
-    vert_pad = 2
-    for joint_name in joint_names:
-        ttk.Label(impedance_tab, text=joint_name).grid(row=joint_count, column=0, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(impedance_tab, textvariable=joint_stiffness[joint_name], ).grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(impedance_tab, textvariable=joint_damping[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
-
-        ttk.Label(limit_tab, text=joint_name).grid(row=joint_count, column=0, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(limit_tab, textvariable=joint_max_torques[joint_name]).grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(limit_tab, textvariable=joint_max_pos_error[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(limit_tab, textvariable=joint_max_vel_error[joint_name]).grid(row=joint_count, column=3, padx=horiz_pad, pady=vert_pad)
-        joint_count += 1
-
-    notebook.add(impedance_tab, text="Impedance")
-    notebook.add(limit_tab, text="Limits")
-
-    parameter_dict = {"stiffness": joint_stiffness,
-                      "damping": joint_damping,
-                      "max_torque": joint_max_torques,
-                      "max_pos_error": joint_max_pos_error,
-                      "max_vel_error": joint_max_vel_error}
-    return parameter_dict
 
 
 
@@ -109,21 +33,10 @@ class AlexControlGUI:
         self._initialize_startup_shutdown_buttons()
         self._initialize_state_buttons()
         self._initialize_control_buttons()
-        self.joint_names = robot.joint_names
-        max_torques = [joint.max_joint_torque for joint in robot.joint_list]
 
-        self.joint_position_frame = LabelFrame(self.content, text="Joint Position")
-        self._joint_positions = {joint: DoubleVar() for joint in self.joint_names}
-        self.joint_position_frame.grid(row=1, column=1, rowspan=4, sticky="n")
-        _initialize_joint_position_sliders(self.joint_position_frame, self._joint_positions, robot.joint_names,
-                                           lower_limits=robot.joint_min_angles, upper_limits=robot.joint_max_angles)
+        self._arm_control = ArmControlGUI(self.control_panel, robot)
+        self.plotter = AlexDataGUI(self.control_panel, self._arm_control)
         self._initialize_pose_buttons()
-
-        parameter_notebook = ttk.Notebook(self.content)
-        parameter_notebook.grid(row=1, column=2, rowspan=15, sticky="n")
-        self._max_torques = dict(zip(self.joint_names, max_torques))
-
-        self._joint_parameter_dict = _initialize_joint_parameter_tabs(parameter_notebook, self.joint_names, max_torques)
 
         self._begin_time = time.perf_counter_ns()
         self.window_active = True
@@ -131,7 +44,8 @@ class AlexControlGUI:
         self._reset = False
 
         joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_list]
-        self.alex_command = AlexCommand(joint_commands=joint_commands)
+        self.alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(robot.joint_names))
+
 
     def _initialize_startup_shutdown_buttons(self):
         main_operation_frame = LabelFrame(self.content, text="Auto Startup/Shutdown", borderwidth=5, relief="ridge",
@@ -177,7 +91,7 @@ class AlexControlGUI:
 
     def _initialize_control_buttons(self):
         control_button_frame = LabelFrame(self.content, text="Control")
-        control_button_frame.grid(row=0, column=1, sticky="n")
+        control_button_frame.grid(row=2, column=0, sticky="n")
         self._use_custom_impedance = BooleanVar(value=False)
         self._send_desireds = BooleanVar(value=False)
         self._send_desireds_continuously = BooleanVar(value=False)
@@ -196,7 +110,7 @@ class AlexControlGUI:
     def _initialize_state_buttons(self):
         self.robot_state_frame = LabelFrame(self.content, text="Robot State", borderwidth=5, relief="ridge",
                                             width=200, height=200)
-        self.robot_state_frame.grid(row=2, column=0, sticky="n")
+        self.robot_state_frame.grid(row=3, column=0, sticky="n")
 
         self._time = DoubleVar(value=0.0)
         self._is_faulted = BooleanVar(value=False)
@@ -235,16 +149,18 @@ class AlexControlGUI:
 
     def _initialize_pose_buttons(self):
         pose_frame = LabelFrame(self.content, text="Poses", borderwidth=5, relief="ridge")
-        pose_frame.grid(row=3, column=0, sticky="n")
+        pose_frame.grid(row=4, column=0, sticky="n")
         self._home_pose = BooleanVar(value=False)
         self._arms_up_pose = BooleanVar(value=False)
         self._pose_running = False
         self._pose_start_time = time.time()
         self._pose_duration = 10.0
         self._pose_joints = []
-        self._initial_positions = [self._joint_positions[name].get() for name in self.joint_names]
-        self._final_positions = [self._joint_positions[name].get() for name in self.joint_names]
-        self._curr_positions = [self._joint_positions[name].get() for name in self.joint_names]
+        joint_positions = self._arm_control.desired_joint_positions
+        joint_names = self._arm_control.joint_names
+        self._initial_positions = [joint_positions[name].get() for name in joint_names]
+        self._final_positions = [joint_positions[name].get() for name in joint_names]
+        self._curr_positions = [joint_positions[name].get() for name in joint_names]
 
         Button(pose_frame, text="Home", command=lambda: self._home_pose.set(True)).grid(row=0, column=0, sticky="w")
         Button(pose_frame, text="Arms Up", command=lambda: self._arms_up_pose.set(True)).grid(row=0, column=1, sticky="w")
@@ -261,17 +177,17 @@ class AlexControlGUI:
                 elif self._arms_up_pose.get():
                     self._pose_joints = arms_up_pose_joints
                     self._final_positions = arms_up_pose_values
-                self._initial_positions = [self._joint_positions[name].get() for name in self._pose_joints]
+                self._initial_positions = [self._arm_control.desired_joint_positions[name].get() for name in self._pose_joints]
                 print("Starting move to home pose")
             else:
                 elapsed_time = time.time() - self._pose_start_time
                 if elapsed_time < self._pose_duration:
                     update_pose_command(elapsed_time, self._pose_duration, self._initial_positions, self._final_positions, self._curr_positions)
                     for i in range(len(self._final_positions)):
-                        self._joint_positions[self._pose_joints[i]].set(self._curr_positions[i])
+                        self._arm_control.desired_joint_positions[self._pose_joints[i]].set(self._curr_positions[i])
                 else:
                     for i in range(len(self._final_positions)):
-                        self._joint_positions[self._pose_joints[i]].set(self._final_positions[i])
+                        self._arm_control.desired_joint_positions[self._pose_joints[i]].set(self._final_positions[i])
                     self._pose_running = False
                     self._home_pose.set(False)
                     self._arms_up_pose.set(False)
@@ -289,10 +205,7 @@ class AlexControlGUI:
 
 
     def _reset_sliders(self, joint_states: List[OneDOFJointState]):
-        for state in joint_states:
-            name = state.joint_name
-            if name in self.joint_names:
-                self._joint_positions[name].set(state.q)
+        self._arm_control.reset_sliders(joint_states)
         self._reset_joint_positions.set(False)
         self._send_desireds.set(True)
 
@@ -318,13 +231,15 @@ class AlexControlGUI:
         self._auto_shutdown_complete.set(alex_state.auto_shutdown_complete)
         self._auto_startup_complete.set(alex_state.auto_startup_complete)
 
+        self._arm_control.updated_measured(alex_state.joint_states)
         if self._reset_joint_positions.get():
-            self._reset_sliders(alex_state.joint_states)
+            self._arm_control.reset_sliders()
+            self._reset_joint_positions.set(False)
+            self._send_desireds.set(True)
 
     def _write_command(self, alex_command: AlexCommand):
         alex_command.request_auto_startup = self._request_auto_startup.get()
         alex_command.request_auto_shutdown = self._request_auto_shutdown.get()
-        alex_command.number_of_joints = len(self.joint_names)
         alex_command.clear_faults = self._clear_faults.get()
         self._clear_faults.set(False)
         alex_command.request_enable_actuators = self._enable_actuators.get()
@@ -334,47 +249,8 @@ class AlexControlGUI:
         alex_command.robot_control_state = robot_control_state[self._robot_control_state.get()]
 
         if self._send_desireds.get() or self._send_desireds_continuously.get():
-            self._update_desireds(alex_command.joint_commands)
+            self._arm_control.update_desireds(alex_command.joint_commands, self._use_custom_impedance.get())
             self._send_desireds.set(False)
-
-    def _update_desireds(self, commands: List[OneDOFJointCommand]):
-        for command in commands:
-            name = command.joint_name
-            command.q_des = self._joint_positions[name].get()
-            command.qd_des = 0.0
-            command.taw_des = 0.0
-            if self._use_custom_impedance.get():
-                command.stiffness = self._joint_parameter_dict["stiffness"][name].get()
-                command.damping = self._joint_parameter_dict["damping"][name].get()
-                command.max_torque = self._joint_parameter_dict["max_torque"][name].get()
-                command.max_position_error = self._joint_parameter_dict["max_pos_error"][name].get()
-                command.max_velocity_error = self._joint_parameter_dict["max_vel_error"][name].get()
-            else:
-                command.stiffness = math.nan
-                command.damping = math.nan
-                command.max_torque = math.nan
-                command.max_position_error = math.nan
-                command.max_velocity_error = math.nan
-
-    def _check_limits(self, joint_name: str):
-        requested_max_torque = self._joint_parameter_dict["max_torque"][joint_name]
-        max_position_error = self._joint_parameter_dict["max_pos_error"][joint_name]
-        max_velocity_error = self._joint_parameter_dict["max_vel_error"][joint_name]
-        stiffness = self._joint_parameter_dict["stiffness"][joint_name].get()
-        damping = self._joint_parameter_dict["damping"][joint_name].get()
-
-        if self._max_torques[joint_name] < requested_max_torque.get():
-            print (joint_name + " max torque exceeded")
-            max_torque = self._max_torques[joint_name]
-            requested_max_torque.set(max_torque)
-        else:
-            max_torque = requested_max_torque.get()
-
-        if stiffness > 0.0:
-            max_position_error.set(min(max_position_error.get(), max_torque / stiffness))
-
-        if damping > 0.0:
-            max_velocity_error.set(min(max_velocity_error.get(), max_torque / damping))
 
     def _start_servo_unservo(self):
         if self._servo_robot.get():
