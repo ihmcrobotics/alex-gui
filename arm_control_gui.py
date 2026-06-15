@@ -4,8 +4,27 @@ from typing import List, Dict
 from skrobot.model import RobotModel, Joint
 from tkinter import ttk
 from tkinter import *
+from joint_settings import *
 
 from messages import OneDOFJointState, OneDOFJointCommand
+
+def check_value(event: Event):
+    entry: Entry = event.widget
+    var_name = entry.cget("textvariable")
+    print(var_name)
+    value = entry.getvar(var_name)
+    print(value)
+    print(entry.get())
+    try:
+        new_value = round(float(entry.get()), 3)
+        entry.delete(0, END)
+        entry.insert(0, f"{new_value:.3f}")
+    except ValueError:
+        print(entry.get() + " is not a valid number, reverting to last value")
+        entry.delete(0, END)
+        entry.insert(0, f"{value:.3f}")
+
+
 
 
 def initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict[str, DoubleVar],
@@ -14,13 +33,46 @@ def initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict[
                                        upper_limits: List[float] | None = None) -> None:
     for i in range(len(joint_names)):
         joint_name = joint_names[i]
-        ttk.Label(joint_frame, text=joint_name).grid(row=i*2 + 1, column=0, sticky="E")
+        Label(joint_frame, text=joint_name).grid(row=i, column=0, sticky="E")
+        # value_label = Label(joint_frame, textvariable=joint_dict[joint_name])
+        # value_label.grid(row=i, column=1, sticky="W")
         slider = Scale(joint_frame, length=200, orient='horizontal', from_=lower_limits[i], to=upper_limits[i],
-                       resolution=0.0001, variable=joint_dict[joint_name])
+                       resolution=0.001, variable=joint_dict[joint_name], showvalue=False)
+        slider.grid(row=i, column=2)
 
 
-        slider.grid(row=i*2, column=1, rowspan=2)
+def initialize_joint_parameter_tabs_v2(notebook: ttk.Notebook, joint_names: List[str],
+                                     joint_settings: Dict[str, JointSettings]) -> Dict[str, Dict]:
+    joint_max_torques = {}
+    joint_stiffness = {}
+    joint_damping = {}
+    joint_max_pos_error = {}
+    joint_max_vel_error = {}
+    for name in joint_settings.keys():
+        joint_setting = joint_settings[name]
+        joint_max_torques[name] = StringVar(value=f"{joint_setting.max_torque:.3f}")
+        joint_stiffness[name] = StringVar(value=f"{joint_setting.stiffness:.3f}")
+        joint_damping[name] = StringVar(value=f"{joint_setting.damping:.3f}")
+        joint_max_pos_error[name] = StringVar(value=f"{joint_setting.max_position_error:.3f}")
+        joint_max_vel_error[name] = StringVar(value=f"{joint_setting.max_velocity_error:.3f}")
 
+    impedance_tab = Frame(notebook)
+    # impedance_tab.grid(row=0, column=0)
+    ttk.Label(impedance_tab, text="Joint").grid(row=0, column=0)
+    ttk.Label(impedance_tab, text="Stiffness").grid(row=0, column=1)
+    ttk.Label(impedance_tab, text="Damping").grid(row=0, column=2)
+
+    # stiffness_frame = ttk.LabelFrame(impedance_tab, text="Stiffness")
+    # stiffness_frame.grid(row=0, column=1)
+    # damping_frame = ttk.LabelFrame(impedance_tab, text="Damping")
+    # damping_frame.grid(row=0, column=2)
+
+    limit_tab = Frame(notebook)
+    ttk.Label(limit_tab, text="Joint").grid(row=0, column=0)
+    ttk.Label(limit_tab, text="Max Torque").grid(row=0, column=1)
+    ttk.Label(limit_tab, text="Max Pos Error").grid(row=0, column=2)
+    ttk.Label(limit_tab, text="Max Vel Error").grid(row=0, column=3)
+    joint_count = 1
 
 def initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[str],
                                      joint_max_torque: List[float]) -> Dict[str, Dict]:
@@ -32,11 +84,11 @@ def initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[st
     for i in range(len(joint_names)):
         name = joint_names[i]
         max_torque = joint_max_torque[i]
-        joint_max_torques[name] = DoubleVar(value=max_torque)
-        joint_stiffness[name] = DoubleVar(value=max_torque/math.pi*2.0)
-        joint_damping[name] = DoubleVar(value=max_torque/(math.pi*5.0))
-        joint_max_pos_error[name] = DoubleVar(value=math.pi)
-        joint_max_vel_error[name] = DoubleVar(value=math.pi/10.0)
+        joint_max_torques[name] = DoubleVar(value=round(max_torque, 3))
+        joint_stiffness[name] = DoubleVar(value=round(max_torque*1.5, 3))
+        joint_damping[name] = DoubleVar(value=round(max_torque/(math.pi*10.0)*5.0, 3))
+        joint_max_pos_error[name] = DoubleVar(value=round(math.pi, 3))
+        joint_max_vel_error[name] = DoubleVar(value=round(math.pi/10.0, 3))
 
     impedance_tab = Frame(notebook)
     # impedance_tab.grid(row=0, column=0)
@@ -60,13 +112,17 @@ def initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[st
     vert_pad = 2
     for joint_name in joint_names:
         ttk.Label(impedance_tab, text=joint_name).grid(row=joint_count, column=0, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(impedance_tab, textvariable=joint_stiffness[joint_name], ).grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
+        stiffness_entry = ttk.Entry(impedance_tab, textvariable=joint_stiffness[joint_name], )
+        stiffness_entry.grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
         ttk.Entry(impedance_tab, textvariable=joint_damping[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
 
         ttk.Label(limit_tab, text=joint_name).grid(row=joint_count, column=0, padx=horiz_pad, pady=vert_pad)
         ttk.Entry(limit_tab, textvariable=joint_max_torques[joint_name]).grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
         ttk.Entry(limit_tab, textvariable=joint_max_pos_error[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
         ttk.Entry(limit_tab, textvariable=joint_max_vel_error[joint_name]).grid(row=joint_count, column=3, padx=horiz_pad, pady=vert_pad)
+
+        stiffness_entry.bind("<Return>", check_value)
+        # stiffness_entry.bind("<FocusOut>", check_value)
         joint_count += 1
 
     notebook.add(impedance_tab, text="Impedance")

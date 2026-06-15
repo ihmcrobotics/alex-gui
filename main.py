@@ -9,11 +9,13 @@ import logging
 
 def main(urdf_path: str):
     thread_lock = Lock()
-
-    robot_visualizer = AlexVisualizer(urdf_path)
+    control_frequency = 100.0
+    comm_frequency = 100.0
+    vis_frequency = 50.0
+    robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
-    control_gui = AlexControlGUI(robot)
-    communication = AlexCommunication("10.43.3.6") #"10.100.4.183")
+    control_gui = AlexControlGUI(robot, frequency=control_frequency)
+    communication = AlexCommunication("10.43.3.6", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 

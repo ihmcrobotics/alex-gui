@@ -40,6 +40,28 @@ arms_up_pose_joints = [
     "NECK_Y"
 ]
 
+wave_pose = [[1.5, -0.6, 1.0, -1.5],
+             [1.5, -0.6, 1.0, -1.0],
+             [1.5, -0.6, 1.0, -2.0],
+             [1.5, -0.6, 1.0, -1.5]]
+wave_pose_joints = [
+    "LEFT_SHOULDER_X",
+    "LEFT_SHOULDER_Y",
+    "LEFT_SHOULDER_Z",
+    "LEFT_ELBOW_Y"
+]
+
+double_wave_pose = [[1.5, -0.6, 1.0, -1.5],
+             [1.5, -0.6, 1.0, -1.0],
+             [1.5, -0.6, 1.0, -2.0],
+             [1.5, -0.6, 1.0, -1.5]]
+double_wave_pose_joints = [
+    "LEFT_SHOULDER_X",
+    "LEFT_SHOULDER_Y",
+    "LEFT_SHOULDER_Z",
+    "LEFT_ELBOW_Y",
+]
+
 def update_pose_command(run_time: float, duration: float, initial_positions: List[float], final_positions: List[float], desired_positions: List[float]):
     for joint in range(len(final_positions)):
         desired_positions[joint] = initial_positions[joint] + run_time / duration * (final_positions[joint] - initial_positions[joint])

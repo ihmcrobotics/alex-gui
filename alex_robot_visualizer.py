@@ -70,7 +70,7 @@ class AlexVisualizer:
             if (remaining_time > 0):
                 time.sleep(remaining_time)
             else:
-                print("missed loop ", remaining_time)
+                print("missed visualizer loop ")
 
     def get_joint_names(self) -> List[str]:
         return self.robot.joint_names

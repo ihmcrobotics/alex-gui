@@ -58,9 +58,11 @@ class AlexCommunication:
                 if alex_command is not None:
                     self._alex_command_writer.write(alex_command)
                     # print("sent alex command")
-                elapsed_time = (curr_time - time.perf_counter_ns()) * 1.0e-9
+                elapsed_time = (time.perf_counter_ns() - curr_time) * 1.0e-9
                 if elapsed_time < self.dt:
                     time.sleep(self.dt - elapsed_time)
+                else:
+                    print("Missed comms loop")
         except KeyboardInterrupt:
             print("\nStopping subscription.")
 

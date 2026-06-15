@@ -1,6 +1,7 @@
 import time
 from tkinter.ttk import Combobox
 from typing import List, Dict, Literal, Union, Any
+
 from poses import *
 from tkinter import *
 from tkinter import ttk
@@ -24,10 +25,12 @@ robot_control_state = {DO_NOTHING: 0,
 
 
 class AlexControlGUI:
-    def __init__(self, robot: RobotModel): #joint_names: List[str], joint_lower_limits: List[float], joint_upper_limits: List[float], joint_max_torque: List[float]): #, joint_ids: Dict[str, int], joint_lower_limits: np.ndarray, joint_upper_limits: np.ndarray, robot_id: int, ghost_id: int):
+    def __init__(self, robot: RobotModel, frequency: float): #joint_names: List[str], joint_lower_limits: List[float], joint_upper_limits: List[float], joint_max_torque: List[float]): #, joint_ids: Dict[str, int], joint_lower_limits: np.ndarray, joint_upper_limits: np.ndarray, robot_id: int, ghost_id: int):
         self.control_panel = Tk()
         self.control_panel.title('Alex Control')
         self.content = Frame(self.control_panel)
+        self.frequency = frequency
+        self.dt = 1.0 / self.frequency
 
         self.content.grid(row=0, column=0)
         self._initialize_startup_shutdown_buttons()
@@ -35,13 +38,18 @@ class AlexControlGUI:
         self._initialize_control_buttons()
 
         self._arm_control = ArmControlGUI(self.control_panel, robot)
-        self.plotter = AlexDataGUI(self.control_panel, self._arm_control)
+        # self.plotter = AlexDataGUI(self.control_panel, self._arm_control)
         self._initialize_pose_buttons()
 
         self._begin_time = time.perf_counter_ns()
         self.window_active = True
         self.control_panel.bind("<Destroy>", self.is_destroyed)
         self._reset = False
+
+        self._avg_loop_time = 0.0
+        self._loop_start_time = time.perf_counter_ns()
+        self._loop_num = 0
+        self._loops_to_avg = 10 * self.frequency
 
         joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_list]
         self.alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(robot.joint_names))
@@ -66,7 +74,7 @@ class AlexControlGUI:
         self._high_level_servo_complete = True
         self._unservo_quickly = BooleanVar(value=False)
         self._use_requested_master_gain = BooleanVar(value=True)
-        self._requested_master_gain = DoubleVar(value=0.0)
+        self._requested_master_gain = DoubleVar()
         self._servo_timer = 0.0
         self._servo_initial_value = 0.0
         self._robot_control_state = StringVar(value="Do Nothing")
@@ -81,7 +89,7 @@ class AlexControlGUI:
         self._servo_robot_button = Button(secondary_operation_frame, text="Servo Robot", command=self._start_servo_unservo)
         self._servo_robot_button.grid(row=3, column=0, sticky="w")
         Button(secondary_operation_frame, text="Clear Faults", command=lambda: self._clear_faults.set(True)).grid(row=1, column=0, sticky="w")
-        self._master_gain_display = Label(secondary_operation_frame, text="Requested Master Gain: 0.0")
+        self._master_gain_display = Label(secondary_operation_frame, text="Requested Master Gain: ")
         self._master_gain_display.grid(row=4, column=0, sticky="w")
         self._master_gain_scale = Scale(secondary_operation_frame, variable=self._requested_master_gain,
                                         orient='horizontal', from_=0.0, to=1.0, resolution=0.01, showvalue=False)
@@ -95,13 +103,11 @@ class AlexControlGUI:
         self._use_custom_impedance = BooleanVar(value=False)
         self._send_desireds = BooleanVar(value=False)
         self._send_desireds_continuously = BooleanVar(value=False)
-        self._reset_joint_positions = BooleanVar(value=True)
-
 
         ttk.Checkbutton(control_button_frame, text="Use Custom Impedance", variable=self._use_custom_impedance).grid(row=1, column=1, sticky="w")
         ttk.Checkbutton(control_button_frame, text="Send Desireds Continuously", variable=self._send_desireds_continuously).grid(row=0, column=1, sticky="w")
         Button(control_button_frame, text="Send Joint Desireds", command= lambda: self._send_desireds.set(True)).grid(row=0, column=0, sticky="w")
-        Button(control_button_frame, text = "Reset Joint Desireds", command= lambda: self._reset_joint_positions.set(True)).grid(row=1, column=0, sticky="w")
+        Button(control_button_frame, text = "Reset Joint Desireds", command= self._reset_sliders).grid(row=1, column=0, sticky="w")
 
 
     def _on_master_gain_change(self, value):
@@ -152,9 +158,11 @@ class AlexControlGUI:
         pose_frame.grid(row=4, column=0, sticky="n")
         self._home_pose = BooleanVar(value=False)
         self._arms_up_pose = BooleanVar(value=False)
+        self._wave_pose = BooleanVar(value=False)
+        self._wave_pose_state = 0
         self._pose_running = False
         self._pose_start_time = time.time()
-        self._pose_duration = 10.0
+        self._pose_duration = 3.0
         self._pose_joints = []
         joint_positions = self._arm_control.desired_joint_positions
         joint_names = self._arm_control.joint_names
@@ -164,19 +172,25 @@ class AlexControlGUI:
 
         Button(pose_frame, text="Home", command=lambda: self._home_pose.set(True)).grid(row=0, column=0, sticky="w")
         Button(pose_frame, text="Arms Up", command=lambda: self._arms_up_pose.set(True)).grid(row=0, column=1, sticky="w")
+        Button(pose_frame, text="Wave", command=lambda: self._wave_pose.set(True)).grid(row=0, column=2, sticky="w")
 
     def _run_poses(self):
-        if self._home_pose.get() or self._arms_up_pose.get():
+        if self._home_pose.get() or self._arms_up_pose.get() or self._wave_pose.get():
             self._send_desireds_continuously.set(False)
             if not self._pose_running:
                 self._pose_start_time = time.time()
                 self._pose_running = True
                 if self._home_pose.get():
+                    self._pose_duration = 5.0
                     self._pose_joints = home_pose_joints
                     self._final_positions = home_pose_values
                 elif self._arms_up_pose.get():
+                    self._pose_duration = 3.0
                     self._pose_joints = arms_up_pose_joints
                     self._final_positions = arms_up_pose_values
+                elif self._wave_pose.get():
+                    self._pose_joints = wave_pose_joints
+                    self._final_positions = wave_pose[self._wave_pose_state]
                 self._initial_positions = [self._arm_control.desired_joint_positions[name].get() for name in self._pose_joints]
                 print("Starting move to home pose")
             else:
@@ -188,9 +202,23 @@ class AlexControlGUI:
                 else:
                     for i in range(len(self._final_positions)):
                         self._arm_control.desired_joint_positions[self._pose_joints[i]].set(self._final_positions[i])
-                    self._pose_running = False
-                    self._home_pose.set(False)
-                    self._arms_up_pose.set(False)
+
+                    if self._wave_pose.get() and self._wave_pose_state < 3:
+                        self._pose_duration = 1.0
+                        self._wave_pose_state += 1
+                        print("Switching to state " + str(self._wave_pose_state))
+                        self._initial_positions[:] = self._final_positions[:]
+                        self._final_positions = wave_pose[self._wave_pose_state]
+                        print(self._initial_positions)
+                        print(self._final_positions)
+                        self._pose_start_time = time.time()
+                    else:
+                        self._pose_running = False
+                        self._home_pose.set(False)
+                        self._wave_pose.set(False)
+                        self._wave_pose_state = 0
+                        self._arms_up_pose.set(False)
+
                     print("Completed move to home pose")
                 self._send_desireds.set(True)
 
@@ -204,19 +232,33 @@ class AlexControlGUI:
         self.control_panel.update()
 
 
-    def _reset_sliders(self, joint_states: List[OneDOFJointState]):
-        self._arm_control.reset_sliders(joint_states)
-        self._reset_joint_positions.set(False)
+    def _reset_sliders(self):
+        self._arm_control.reset_sliders()
         self._send_desireds.set(True)
 
     def run_gui(self, lock: Union[Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         while self.window_active:
+            prev_loop_start_time = self._loop_start_time
+            self._loop_start_time = time.perf_counter_ns()
+            self._avg_loop_time += (self._loop_start_time - prev_loop_start_time) *1.0e-9
+            self._loop_num += 1
             if lock is not None and shared_data is not None:
                 with lock:
                     self._read_state(shared_data["alex_state"])
                     self._write_command(shared_data["alex_command"])
             self.update_gui()
-            time.sleep(0.01)
+            elapsed_time = (time.perf_counter_ns() - self._loop_start_time) * 1.0e-9
+            if self._loop_num >= self._loops_to_avg:
+                avg_loop_time = self._avg_loop_time / self._loop_num
+                print("Avg loop time: ", avg_loop_time)
+                print("Avg freq: ", 1.0/ avg_loop_time)
+                self._avg_loop_time = 0.0
+                self._loop_num = 0
+                print(elapsed_time)
+            if elapsed_time < self.dt:
+                time.sleep(self.dt - elapsed_time)
+            else:
+                print("Missed control loop")
 
     def _read_state(self, alex_state: AlexState):
         self._time.set(alex_state.time)
@@ -232,10 +274,6 @@ class AlexControlGUI:
         self._auto_startup_complete.set(alex_state.auto_startup_complete)
 
         self._arm_control.updated_measured(alex_state.joint_states)
-        if self._reset_joint_positions.get():
-            self._arm_control.reset_sliders()
-            self._reset_joint_positions.set(False)
-            self._send_desireds.set(True)
 
     def _write_command(self, alex_command: AlexCommand):
         alex_command.request_auto_startup = self._request_auto_startup.get()
@@ -253,13 +291,13 @@ class AlexControlGUI:
             self._send_desireds.set(False)
 
     def _start_servo_unservo(self):
-        if self._servo_robot.get():
+        self._servo_robot.set(not self._servo_robot.get())
+        if not self._servo_robot.get():
             self._servo_robot_button.config(text="Unservoing Robot", state="disabled")
-            self._servo_robot.set(False)
             self._high_level_servo_complete = False
             self._servo_timer = time.time()
             self._servo_initial_value = self._current_ll_master_gain.get()
-        elif self._high_level_servo_complete:
+        else:
             self._servo_robot_button.config(text="Servoing Robot, press to cancel", state="normal")
             self._servo_initial_value = 0.0
             self._servo_timer = time.time()
@@ -268,23 +306,27 @@ class AlexControlGUI:
 
     def _run_servo_unservo(self):
         servo_ratio = (time.time() - self._servo_timer) / 2.0
-        print(servo_ratio)
+
+        # print(servo_ratio)
         if servo_ratio < 1.0:
+            servo_ratio = round(servo_ratio, 2)
             if self._servo_robot.get():
                 # self._master_gain_scale.set(servo_ratio)
                 self._requested_master_gain.set(servo_ratio)
             else:
                 # self._master_gain_scale.set(self._servo_initial_value* (1.0 - servo_ratio))
                 self._requested_master_gain.set(self._servo_initial_value * (1.0 - servo_ratio))
-            print(self._requested_master_gain.get())
+            # print(self._requested_master_gain.get())
         else:
             self._high_level_servo_complete = True
             if self._servo_robot.get():
                 self._servo_robot_button.config(text="Unservo Robot", state="normal")
                 self._requested_master_gain.set(1.0)
+                print("Robot is servoed")
             else:
                 self._servo_robot_button.config(text="Servo Robot", state="normal")
                 self._requested_master_gain.set(0.0)
+                print("Robot is unservoed")
 
 
 
@@ -313,7 +355,7 @@ class AlexControlGUI:
             self._request_auto_startup.set(False)
             print("Shutting down midway through startup")
         if self._request_auto_startup.get():
-            self._reset_joint_positions.set(True)
+            self._reset_sliders()
         self._begin_time = time.perf_counter_ns()
 
     def _update_auto_startup_shutdown(self):
