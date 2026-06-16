@@ -20,7 +20,8 @@ class Boolean:
         self.value = value
 
 class FloatSlider:
-    def __init__(self, name: str, min_value: float=0.0, max_value: float=1.0, initial_value: float=0.0, use_name_as_label: bool=True):
+    def __init__(self, name: str, min_value: float=0.0, max_value: float=1.0,
+                 initial_value: float=0.0, use_name_as_label: bool=True, width: int=300):
         self._name = name
         self._tag = name+"_slider"
         self._min_value = min_value
@@ -30,16 +31,17 @@ class FloatSlider:
         if use_name_as_label:
             dpg.add_slider_float(label=name, tag=self._tag,
                                  min_value=min_value, max_value=max_value, default_value=initial_value,
-                                 user_data=self._value, callback=update_value)
+                                 user_data=self._value, callback=update_value, width=width)
         else:
             dpg.add_slider_float(tag=self._tag,
                                  min_value=min_value, max_value=max_value, default_value=initial_value,
-                                 user_data=self._value, callback=update_value)
+                                 user_data=self._value, callback=update_value, width=width)
     @property
     def value(self):
         return self._value.value
 
     def set(self, value: float):
+        self._value.set(value)
         dpg.set_value(self._tag, value)
 
 class CheckBox:
@@ -54,7 +56,8 @@ class CheckBox:
     def value(self):
         return self._value.value
 
-    def set(self, value: float):
+    def set(self, value: bool):
+        self._value.set(value)
         dpg.set_value(self._tag, value)
 
 class Button:
@@ -68,7 +71,8 @@ class Button:
     def value(self):
         return self._value.value
 
-    def set(self, value: float):
+    def set(self, value: bool):
+        self._value.set(value)
         dpg.set_value(self._tag, value)
 
 class FloatDisplay:
@@ -76,7 +80,7 @@ class FloatDisplay:
         self._name = name
         self._tag = name+"_display"
         self._value = Float(0.0)
-        dpg.add_text(label=name + ": " + f"{initial_value:.3f}", tag=self._tag)
+        dpg.add_text(label="0.0", tag=self._tag)
 
     @property
     def value(self):
@@ -84,4 +88,4 @@ class FloatDisplay:
 
     def set(self, value: float):
         self._value.set(value)
-        dpg.configure_item(self._tag, label=self._name + ": " + f"{value:.3f}" )
+        dpg.configure_item(self._tag, label=str(round(self._value.value, 3)))

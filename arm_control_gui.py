@@ -79,14 +79,14 @@ class ArmControlGUI:
                 self.joint_settings[joint.name] = JointSettings(max_torque=joint.max_joint_torque)
 
         self.measured_joint_positions = {joint: 0.0 for joint in self.joint_names}
-        with dpg.window(label="Joint Control", tag="joint_control", pos=[0, 0], width=400, height=420):
+        with dpg.window(label="Joint Control", tag="joint_control", pos=[450, 0], width=450, height=450):
             with dpg.group(horizontal=True):
                 self._send_desireds = Button("Send Desireds")
                 self._send_desireds_continuously = CheckBox("Send Desireds Continuously")
             dpg.add_button(label="Reset sliders", callback=self.reset_sliders)
             self._desired_joint_positions = initialize_joint_position_sliders(self.joint_names, lower_limits=self.joint_lower_limits, upper_limits=self.joint_upper_limits)
 
-        with dpg.window(label="Joint Settings", tag="joint_settings", pos=[0, 420], width=450, height=420):
+        with dpg.window(label="Joint Settings", tag="joint_settings", pos=[450, 450], width=450, height=500):
             with dpg.group(horizontal=True):
                 self._update_settings_button = Button("Update Settings")
                 self._update_settings_continuously = CheckBox("Update Settings Continuously")

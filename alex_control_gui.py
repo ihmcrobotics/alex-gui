@@ -65,30 +65,32 @@ class AlexControlGUI:
             dpg.add_button(label="Emergency Stop", callback=self._emergency_stop)
 
 
-        with dpg.window(label="Manual Startup/Shutdown", tag="manual_startup_shutdown", pos=[0, 420], width=200, height=300):
+        with dpg.window(label="Manual Startup/Shutdown", tag="manual_startup_shutdown", pos=[0, 100], width=400, height=200):
             dpg.add_button(label="Request Safe Power Up", tag=self._safe_power_up_down_tag, callback=self._run_safe_power_up_down)
             self._clear_faults = Button("Clear Faults")
             self._enable_actuators = CheckBox("Enable Actuators", False)
             dpg.add_button(label="Servo Robot", tag="servo_robot", callback=self._start_servo_unservo)
             with dpg.group(horizontal=True):
                 dpg.add_text("Requested Master Gain: ")
-                self._requested_master_gain = FloatSlider("Requested Master Gain", use_name_as_label=False)
+                self._requested_master_gain = FloatSlider("Requested Master Gain", use_name_as_label=False, width=150)
             with dpg.group(horizontal=True):
                 dpg.add_text("Control State: ")
-                dpg.add_combo(items=[DO_NOTHING, USER_CONTROL], tag="control_state")
+                dpg.add_combo(items=[DO_NOTHING, USER_CONTROL], tag="control_state", width=100)
 
     def _emergency_stop(self):
         self._unservo_quickly = True
-        self._enable_actuators = False
+        self._enable_actuators.set(False)
         self._requested_master_gain.set(0.0)
         self._request_auto_shutdown = True
 
     def _initialize_state_buttons(self):
-        with dpg.window(label="Robot State", tag="robot_state", pos=[0, 420], width=200, height=300):
-            self._time = FloatDisplay("Time", 0.0)
-            self._current_ll_master_gain = FloatDisplay("Current Master Gain", 0.0)
-            dpg.add_text("Time: 0.0", tag="time")
-            dpg.add_text("Low Level Master Gain: 0.0", tag="low_level_master_gain")
+        with dpg.window(label="Robot State", tag="robot_state", pos=[0, 300], width=400, height=250):
+            with dpg.group(horizontal=True):
+                dpg.add_text(label="Time")
+                self._time = FloatDisplay("Time", 0.0)
+            with dpg.group(horizontal=True):
+                dpg.add_text(label="Low Level Master Gain")
+                self._current_ll_master_gain = FloatDisplay("Current Master Gain", 0.0)
             self._is_faulted = CheckBox("Robot Faulted", False)
             self._are_actuators_enabled = CheckBox("Actuators Enabled", False)
             self._is_servoed = CheckBox("Robot Servoed", False)
@@ -112,35 +114,30 @@ class AlexControlGUI:
         self._initial_positions = [self._arm_control.get_desired_joint_position_by_name(name) for name in joint_names]
         self._final_positions = [self._arm_control.get_desired_joint_position_by_name(name) for name in joint_names]
         self._curr_positions = [self._arm_control.get_desired_joint_position_by_name(name) for name in joint_names]
+        self._curr_pose = HOME_POSE
 
-        with dpg.window(label="Poses", tag="poses", pos=[0, 420], width=200, height=300):
-            self._home_pose = Button("Home")
-            self._arms_up_pose = Button("Arms Up")
-            self._wave_pose = Button("Wave")
+        with dpg.window(label="Poses", pos=[200, 0], width=200, height=100):
+            with dpg.group(horizontal=True):
+                dpg.add_text("Pose: ")
+                dpg.add_combo(items=poses, tag="poses", width=100)
 
-    def _start_wave(self):
-        self._wave_pose = True
-
-    def _start_arms_up(self):
-        self._arms_up_pose = True
-
-    def _start_home(self):
-        self._home_pose = True
+            self._run_pose = CheckBox("Run Pose", False)
 
     def _run_poses(self):
-        if self._home_pose.value or self._arms_up_pose.value or self._wave_pose.value:
+        if self._run_pose.value:
             if not self._pose_running:
+                self._curr_pose = dpg.get_value("poses")
                 self._pose_start_time = time.time()
                 self._pose_running = True
-                if self._home_pose.value:
+                if self._curr_pose == HOME_POSE:
                     self._pose_duration = 5.0
                     self._pose_joints = home_pose_joints
                     self._final_positions = home_pose_values
-                elif self._arms_up_pose.value:
+                elif self._curr_pose == ARMS_UP_POSE:
                     self._pose_duration = 3.0
                     self._pose_joints = arms_up_pose_joints
                     self._final_positions = arms_up_pose_values
-                elif self._wave_pose.value:
+                elif self._curr_pose == WAVE_POSE:
                     self._pose_joints = wave_pose_joints
                     self._final_positions = wave_pose[self._wave_pose_state]
                 self._initial_positions = [self._arm_control.get_desired_joint_position_by_name(name) for name in self._pose_joints]
@@ -155,7 +152,7 @@ class AlexControlGUI:
                     for i in range(len(self._final_positions)):
                         self._arm_control.set_desired_joint_position_by_name(self._pose_joints[i], self._final_positions[i])
 
-                    if self._wave_pose.value and self._wave_pose_state < 3:
+                    if self._curr_pose == WAVE_POSE and self._wave_pose_state < 3:
                         self._pose_duration = 1.0
                         self._wave_pose_state += 1
                         print("Switching to state " + str(self._wave_pose_state))
@@ -165,11 +162,10 @@ class AlexControlGUI:
                         print(self._final_positions)
                         self._pose_start_time = time.time()
                     else:
+                        self._run_pose.set(False)
                         self._pose_running = False
-                        self._home_pose.set(False)
-                        self._wave_pose.set(False)
+                        print(self._run_pose.value)
                         self._wave_pose_state = 0
-                        self._arms_up_pose.set(False)
 
                     print("Completed move to home pose")
                 self._arm_control.send_desireds()
@@ -186,7 +182,7 @@ class AlexControlGUI:
 
     def _reset_sliders(self):
         self._arm_control.reset_sliders()
-        self._send_desireds.set(True)
+        self._arm_control.send_desireds()
 
     def run_gui(self, lock: Union[Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         while dpg.is_dearpygui_running():
@@ -251,7 +247,7 @@ class AlexControlGUI:
             dpg.configure_item("servo_robot", label="Unservoing Robot", enabled=False)
             self._high_level_servo_complete = False
             self._servo_timer = time.time()
-            self._servo_initial_value = self._current_ll_master_gain.get()
+            self._servo_initial_value = self._current_ll_master_gain.value
         else:
             dpg.configure_item("servo_robot", label="Servoing Robot, press to cancel", enabled=True)
             self._servo_initial_value = 0.0

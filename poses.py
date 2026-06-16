@@ -1,5 +1,11 @@
 from typing import List
 
+WAVE_POSE = "WAVE"
+HOME_POSE = "HOME"
+ARMS_UP_POSE = "ARMS_UP"
+
+poses = [WAVE_POSE, HOME_POSE, ARMS_UP_POSE]
+
 home_pose_values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 home_pose_joints = [
     "LEFT_SHOULDER_X",

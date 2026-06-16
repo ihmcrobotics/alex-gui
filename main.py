@@ -18,7 +18,7 @@ def main(urdf_path: str):
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot, frequency=control_frequency)
-    dpg.create_viewport(title='Control GUI', width=500, height=700, vsync=False)
+    dpg.create_viewport(title='Control GUI', width=900, height=1000, vsync=False)
     dpg.setup_dearpygui()
     communication = AlexCommunication("10.100.3.41", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
