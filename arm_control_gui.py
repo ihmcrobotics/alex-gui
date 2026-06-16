@@ -1,143 +1,66 @@
 import math
+import time
 from typing import List, Dict
+from dearpygui_helpers import *
 
 from skrobot.model import RobotModel, Joint
-from tkinter import ttk
-from tkinter import *
-from joint_settings import *
+import dearpygui.dearpygui as dpg
+
+from joint_settings import JointSettings
 
 from messages import OneDOFJointState, OneDOFJointCommand
 
-def check_value(event: Event):
-    entry: Entry = event.widget
-    var_name = entry.cget("textvariable")
-    print(var_name)
-    value = entry.getvar(var_name)
-    print(value)
-    print(entry.get())
-    try:
-        new_value = round(float(entry.get()), 3)
-        entry.delete(0, END)
-        entry.insert(0, f"{new_value:.3f}")
-    except ValueError:
-        print(entry.get() + " is not a valid number, reverting to last value")
-        entry.delete(0, END)
-        entry.insert(0, f"{value:.3f}")
 
-
-
-
-def initialize_joint_position_sliders(joint_frame: LabelFrame, joint_dict: Dict[str, DoubleVar],
-                                       joint_names: List[str],
-                                       lower_limits: List[float] | None = None,
-                                       upper_limits: List[float] | None = None) -> None:
+def initialize_joint_position_sliders(joint_names: List[str],
+                                      lower_limits: List[float] | None = None,
+                                      upper_limits: List[float] | None = None) -> Dict[str, FloatSlider]:
+    joint_sliders = {}
     for i in range(len(joint_names)):
         joint_name = joint_names[i]
-        Label(joint_frame, text=joint_name).grid(row=i, column=0, sticky="E")
-        # value_label = Label(joint_frame, textvariable=joint_dict[joint_name])
-        # value_label.grid(row=i, column=1, sticky="W")
-        slider = Scale(joint_frame, length=200, orient='horizontal', from_=lower_limits[i], to=upper_limits[i],
-                       resolution=0.001, variable=joint_dict[joint_name], showvalue=False)
-        slider.grid(row=i, column=2)
+        joint_sliders[joint_name] = FloatSlider(joint_name, lower_limits[i], upper_limits[i])
+        print(joint_name)
+    return joint_sliders
 
+def initialize_joint_parameter_tabs(joint_settings: Dict[str, JointSettings]) -> None:
 
-def initialize_joint_parameter_tabs_v2(notebook: ttk.Notebook, joint_names: List[str],
-                                     joint_settings: Dict[str, JointSettings]) -> Dict[str, Dict]:
-    joint_max_torques = {}
-    joint_stiffness = {}
-    joint_damping = {}
-    joint_max_pos_error = {}
-    joint_max_vel_error = {}
-    for name in joint_settings.keys():
-        joint_setting = joint_settings[name]
-        joint_max_torques[name] = StringVar(value=f"{joint_setting.max_torque:.3f}")
-        joint_stiffness[name] = StringVar(value=f"{joint_setting.stiffness:.3f}")
-        joint_damping[name] = StringVar(value=f"{joint_setting.damping:.3f}")
-        joint_max_pos_error[name] = StringVar(value=f"{joint_setting.max_position_error:.3f}")
-        joint_max_vel_error[name] = StringVar(value=f"{joint_setting.max_velocity_error:.3f}")
+    with dpg.tab_bar():
+        with dpg.tab(label="Impedance"):
+            with dpg.table(header_row=True):
+                dpg.add_table_column(label="Joint")
+                dpg.add_table_column(label="Stiffness")
+                dpg.add_table_column(label="Damping")
 
-    impedance_tab = Frame(notebook)
-    # impedance_tab.grid(row=0, column=0)
-    ttk.Label(impedance_tab, text="Joint").grid(row=0, column=0)
-    ttk.Label(impedance_tab, text="Stiffness").grid(row=0, column=1)
-    ttk.Label(impedance_tab, text="Damping").grid(row=0, column=2)
+                for name, settings in joint_settings.items():
+                    with dpg.table_row():
+                        dpg.add_text(name)
+                        dpg.add_input_float(tag=name+"_stiffness",
+                                            default_value=settings.stiffness,
+                                            width=100)
+                        dpg.add_input_float(tag=name + "_damping",
+                                            default_value=settings.damping,
+                                            width=100)
 
-    # stiffness_frame = ttk.LabelFrame(impedance_tab, text="Stiffness")
-    # stiffness_frame.grid(row=0, column=1)
-    # damping_frame = ttk.LabelFrame(impedance_tab, text="Damping")
-    # damping_frame.grid(row=0, column=2)
-
-    limit_tab = Frame(notebook)
-    ttk.Label(limit_tab, text="Joint").grid(row=0, column=0)
-    ttk.Label(limit_tab, text="Max Torque").grid(row=0, column=1)
-    ttk.Label(limit_tab, text="Max Pos Error").grid(row=0, column=2)
-    ttk.Label(limit_tab, text="Max Vel Error").grid(row=0, column=3)
-    joint_count = 1
-
-def initialize_joint_parameter_tabs(notebook: ttk.Notebook, joint_names: List[str],
-                                     joint_max_torque: List[float]) -> Dict[str, Dict]:
-    joint_max_torques = {}
-    joint_stiffness = {}
-    joint_damping = {}
-    joint_max_pos_error = {}
-    joint_max_vel_error = {}
-    for i in range(len(joint_names)):
-        name = joint_names[i]
-        max_torque = joint_max_torque[i]
-        joint_max_torques[name] = DoubleVar(value=round(max_torque, 3))
-        joint_stiffness[name] = DoubleVar(value=round(max_torque*1.5, 3))
-        joint_damping[name] = DoubleVar(value=round(max_torque/(math.pi*10.0)*5.0, 3))
-        joint_max_pos_error[name] = DoubleVar(value=round(math.pi, 3))
-        joint_max_vel_error[name] = DoubleVar(value=round(math.pi/10.0, 3))
-
-    impedance_tab = Frame(notebook)
-    # impedance_tab.grid(row=0, column=0)
-    ttk.Label(impedance_tab, text="Joint").grid(row=0, column=0)
-    ttk.Label(impedance_tab, text="Stiffness").grid(row=0, column=1)
-    ttk.Label(impedance_tab, text="Damping").grid(row=0, column=2)
-
-    # stiffness_frame = ttk.LabelFrame(impedance_tab, text="Stiffness")
-    # stiffness_frame.grid(row=0, column=1)
-    # damping_frame = ttk.LabelFrame(impedance_tab, text="Damping")
-    # damping_frame.grid(row=0, column=2)
-
-    limit_tab = Frame(notebook)
-    ttk.Label(limit_tab, text="Joint").grid(row=0, column=0)
-    ttk.Label(limit_tab, text="Max Torque").grid(row=0, column=1)
-    ttk.Label(limit_tab, text="Max Pos Error").grid(row=0, column=2)
-    ttk.Label(limit_tab, text="Max Vel Error").grid(row=0, column=3)
-    joint_count = 1
-
-    horiz_pad = 5
-    vert_pad = 2
-    for joint_name in joint_names:
-        ttk.Label(impedance_tab, text=joint_name).grid(row=joint_count, column=0, padx=horiz_pad, pady=vert_pad)
-        stiffness_entry = ttk.Entry(impedance_tab, textvariable=joint_stiffness[joint_name], )
-        stiffness_entry.grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(impedance_tab, textvariable=joint_damping[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
-
-        ttk.Label(limit_tab, text=joint_name).grid(row=joint_count, column=0, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(limit_tab, textvariable=joint_max_torques[joint_name]).grid(row=joint_count, column=1, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(limit_tab, textvariable=joint_max_pos_error[joint_name]).grid(row=joint_count, column=2, padx=horiz_pad, pady=vert_pad)
-        ttk.Entry(limit_tab, textvariable=joint_max_vel_error[joint_name]).grid(row=joint_count, column=3, padx=horiz_pad, pady=vert_pad)
-
-        stiffness_entry.bind("<Return>", check_value)
-        # stiffness_entry.bind("<FocusOut>", check_value)
-        joint_count += 1
-
-    notebook.add(impedance_tab, text="Impedance")
-    notebook.add(limit_tab, text="Limits")
-
-    parameter_dict = {"stiffness": joint_stiffness,
-                      "damping": joint_damping,
-                      "max_torque": joint_max_torques,
-                      "max_pos_error": joint_max_pos_error,
-                      "max_vel_error": joint_max_vel_error}
-    return parameter_dict
+        with dpg.tab(label="Limits"):
+            with dpg.table(header_row=True):
+                dpg.add_table_column(label="Joint")
+                dpg.add_table_column(label="Max Torque")
+                dpg.add_table_column(label="Max Pos Error")
+                dpg.add_table_column(label="Max Vel Error")
+                for name, settings in joint_settings.items():
+                    with dpg.table_row():
+                        dpg.add_text(name)
+                        dpg.add_input_float(tag=name+"_max_torque",
+                                            default_value=settings.max_torque,
+                                            width=100)
+                        dpg.add_input_float(tag=name + "_max_position_error",
+                                            default_value=settings.max_position_error,
+                                            width=100)
+                        dpg.add_input_float(tag=name + "_max_velocity_error",
+                                            default_value=settings.max_velocity_error,
+                                            width=100)
 
 class ArmControlGUI:
-    def __init__(self, frame, robot: RobotModel):
-        self._frame = frame
+    def __init__(self, robot: RobotModel):
         self.robot = robot
 
         self.joint_names = []
@@ -145,7 +68,7 @@ class ArmControlGUI:
         self.joint_lower_limits = []
         self.joint_upper_limits = []
         self.joint_max_torques = []
-        self._max_torque_dict = {}
+        self.joint_settings = {}
         for joint in robot.joint_list:
             if "ezgripper" not in joint.name:
                 self.joint_names.append(joint.name)
@@ -153,24 +76,26 @@ class ArmControlGUI:
                 self.joint_lower_limits.append(joint.min_joint_angle)
                 self.joint_upper_limits.append(joint.max_joint_angle)
                 self.joint_max_torques.append(joint.max_joint_torque)
-                self._max_torque_dict[joint.name] = joint.max_joint_torque
+                self.joint_settings[joint.name] = JointSettings(max_torque=joint.max_joint_torque)
 
-        self.joint_position_frame = LabelFrame(self._frame, text="Joint Position")
-        self.desired_joint_positions = {joint: DoubleVar() for joint in self.joint_names}
         self.measured_joint_positions = {joint: 0.0 for joint in self.joint_names}
-        self.joint_position_frame.grid(row=0, column=1, rowspan=2, sticky="n")
+        with dpg.window(label="Joint Control", tag="joint_control", pos=[0, 0], width=400, height=420):
+            with dpg.group(horizontal=True):
+                self._send_desireds = Button("Send Desireds")
+                self._send_desireds_continuously = CheckBox("Send Desireds Continuously")
+            dpg.add_button(label="Reset sliders", callback=self.reset_sliders)
+            self._desired_joint_positions = initialize_joint_position_sliders(self.joint_names, lower_limits=self.joint_lower_limits, upper_limits=self.joint_upper_limits)
 
-        initialize_joint_position_sliders(self.joint_position_frame, self.desired_joint_positions, self.joint_names,
-                                          lower_limits=self.joint_lower_limits, upper_limits=self.joint_upper_limits)
-
-        parameter_notebook = ttk.Notebook(self._frame)
-        parameter_notebook.grid(row=0, column=2, rowspan=3, sticky="n")
-
-        self._joint_parameter_dict = initialize_joint_parameter_tabs(parameter_notebook, self.joint_names, self.joint_max_torques)
+        with dpg.window(label="Joint Settings", tag="joint_settings", pos=[0, 420], width=450, height=420):
+            with dpg.group(horizontal=True):
+                self._update_settings_button = Button("Update Settings")
+                self._update_settings_continuously = CheckBox("Update Settings Continuously")
+            self._use_custom_impedance = CheckBox("Use Custom Impedance")
+            initialize_joint_parameter_tabs(self.joint_settings)
 
     def reset_sliders(self):
         for name in self.joint_names:
-            self.desired_joint_positions[name].set(self.measured_joint_positions[name])
+            self._desired_joint_positions[name].set(self.measured_joint_positions[name])
 
     def updated_measured(self, joint_states: List[OneDOFJointState]):
         for joint_state in joint_states:
@@ -178,44 +103,82 @@ class ArmControlGUI:
             if name in self.joint_names:
                 self.measured_joint_positions[name] = joint_state.q
 
-    def update_desireds(self, commands: List[OneDOFJointCommand], use_custom_impedance: bool):
-        for command in commands:
-            name = command.joint_name
-            if name in self.joint_names:
-                command.q_des = self.desired_joint_positions[name].get()
-                command.qd_des = 0.0
-                command.taw_des = 0.0
-                if use_custom_impedance:
-                    command.stiffness = self._joint_parameter_dict["stiffness"][name].get()
-                    command.damping = self._joint_parameter_dict["damping"][name].get()
-                    command.max_torque = self._joint_parameter_dict["max_torque"][name].get()
-                    command.max_position_error = self._joint_parameter_dict["max_pos_error"][name].get()
-                    command.max_velocity_error = self._joint_parameter_dict["max_vel_error"][name].get()
-                else:
-                    command.stiffness = math.nan
-                    command.damping = math.nan
-                    command.max_torque = math.nan
-                    command.max_position_error = math.nan
-                    command.max_velocity_error = math.nan
+    def _update_settings(self):
+        for name in self.joint_names:
 
-    def _check_limits(self, joint_name: str):
-        requested_max_torque = self._joint_parameter_dict["max_torque"][joint_name]
-        max_position_error = self._joint_parameter_dict["max_pos_error"][joint_name]
-        max_velocity_error = self._joint_parameter_dict["max_vel_error"][joint_name]
-        stiffness = self._joint_parameter_dict["stiffness"][joint_name].get()
-        damping = self._joint_parameter_dict["damping"][joint_name].get()
+            joint_setting = self.joint_settings[name]
+            desired_stiffness = dpg.get_value(name + "_stiffness")
+            desired_damping = dpg.get_value(name + "_damping")
+            desired_max_torque = dpg.get_value(name + "_max_torque")
+            desired_max_position_error = dpg.get_value(name + "_max_position_error")
+            desired_max_velocity_error = dpg.get_value(name + "_max_velocity_error")
 
-        if self._max_torque_dict[joint_name] < requested_max_torque.get():
-            print (joint_name + " max torque exceeded")
-            max_torque = self._max_torque_dict[joint_name]
-            requested_max_torque.set(max_torque)
-        else:
-            max_torque = requested_max_torque.get()
+            joint_setting.update_all_settings(desired_stiffness, desired_damping, desired_max_torque, desired_max_position_error, desired_max_velocity_error)
 
-        if stiffness > 0.0:
-            max_position_error.set(min(max_position_error.get(), max_torque / stiffness))
+            dpg.set_value(name + "_stiffness", joint_setting.stiffness)
+            dpg.set_value(name + "_damping", joint_setting.damping)
+            dpg.set_value(name + "_max_torque", joint_setting.max_torque)
+            dpg.set_value(name + "_max_position_error", joint_setting.max_position_error)
+            dpg.set_value(name + "_max_velocity_error", joint_setting.max_velocity_error)
 
-        if damping > 0.0:
-            max_velocity_error.set(min(max_velocity_error.get(), max_torque / damping))
+    def _update_internal(self):
+        if self._update_settings_button.value or self._update_settings_continuously.value:
+            self._update_settings()
+            self._update_settings_button.set(False)
 
 
+    def update_desireds(self, commands: List[OneDOFJointCommand]):
+        if self._send_desireds.value or self._send_desireds_continuously.value:
+            for command in commands:
+                name = command.joint_name
+                if name in self.joint_names:
+                    command.q_des = self._desired_joint_positions[name].value
+                    command.qd_des = 0.0
+                    command.taw_des = 0.0
+                    if self._use_custom_impedance.value:
+                        command.stiffness = self.joint_settings[name].stiffness
+                        command.damping = self.joint_settings[name].damping
+                        command.max_torque = self.joint_settings[name].max_torque
+                        command.max_position_error = self.joint_settings[name].max_position_error
+                        command.max_velocity_error = self.joint_settings[name].max_velocity_error
+                    else:
+                        command.stiffness = math.nan
+                        command.damping = math.nan
+                        command.max_torque = math.nan
+                        command.max_position_error = math.nan
+                        command.max_velocity_error = math.nan
+            self._send_desireds.set(False)
+
+    def send_desireds(self):
+        self._send_desireds.set(True)
+
+    def get_desired_joint_position_by_name(self, name: str):
+        return self._desired_joint_positions[name].value
+
+    def set_desired_joint_position_by_name(self, name: str, value: float):
+        self._desired_joint_positions[name].set(value)
+
+
+if __name__ == "__main__":
+    dpg.create_context()
+    dpg.configure_app(docking=True, docking_space=True)
+    path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe.urdf"
+    this_robot = RobotModel.from_urdf(path)
+    print('a')
+    arm_control = ArmControlGUI(this_robot)
+    print('b')
+
+    dpg.create_viewport(title='Custom Title', width=500, height=700)
+    dpg.setup_dearpygui()
+    print('c')
+    dpg.show_viewport()
+    # dpg.set_primary_window("joint_control", True)
+    while dpg.is_dearpygui_running():
+        dpg.render_dearpygui_frame()
+        arm_control._update_internal()
+        time.sleep(0.01)
+    print('d')
+    dpg.start_dearpygui()
+    print('e')
+    dpg.destroy_context()
+    print('f')
