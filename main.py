@@ -12,15 +12,15 @@ def main(urdf_path: str):
     dpg.create_context()
     dpg.configure_app(docking=True, docking_space=True)
     thread_lock = Lock()
-    control_frequency = 200.0
-    comm_frequency = 200.0
-    vis_frequency = 50.0
+    control_frequency = 100.0
+    comm_frequency = 100.0
+    vis_frequency = 200.0
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot, frequency=control_frequency)
     dpg.create_viewport(title='Control GUI', width=900, height=1000, vsync=False)
     dpg.setup_dearpygui()
-    communication = AlexCommunication("10.100.3.41", frequency=comm_frequency) #"10.100.4.183")
+    communication = AlexCommunication("10.43.3.6", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 

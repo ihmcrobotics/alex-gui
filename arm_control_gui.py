@@ -96,6 +96,7 @@ class ArmControlGUI:
     def reset_sliders(self):
         for name in self.joint_names:
             self._desired_joint_positions[name].set(self.measured_joint_positions[name])
+        self._send_desireds.set(True)
 
     def updated_measured(self, joint_states: List[OneDOFJointState]):
         for joint_state in joint_states:

@@ -190,13 +190,13 @@ class AlexControlGUI:
             self._loop_start_time = time.perf_counter_ns()
             self._avg_loop_time += (self._loop_start_time - prev_loop_start_time) *1.0e-9
             self._loop_num += 1
-            dpg.render_dearpygui_frame()
+            self.update_gui()
             if lock is not None and shared_data is not None:
                 with lock:
                     self._read_state(shared_data["alex_state"])
                     self._write_command(shared_data["alex_command"])
 
-            self.update_gui()
+
             elapsed_time = (time.perf_counter_ns() - self._loop_start_time) * 1.0e-9
             if self._loop_num >= self._loops_to_avg:
                 avg_loop_time = self._avg_loop_time / self._loop_num
@@ -306,6 +306,7 @@ class AlexControlGUI:
         if self._request_auto_startup:
             self._reset_sliders()
         self._begin_time = time.perf_counter_ns()
+        print(self._request_auto_startup)
 
     def _update_auto_startup_shutdown(self):
         if self._request_auto_startup and self._auto_startup_complete.value:
