@@ -75,7 +75,7 @@ class AlexControlGUI:
                 self._requested_master_gain = FloatSlider("Requested Master Gain", use_name_as_label=False, width=150)
             with dpg.group(horizontal=True):
                 dpg.add_text("Control State: ")
-                dpg.add_combo(items=[DO_NOTHING, USER_CONTROL], tag="control_state", width=100)
+                dpg.add_combo(items=[DO_NOTHING, USER_CONTROL], tag="control_state", width=100, default_value=DO_NOTHING)
 
     def _emergency_stop(self):
         self._unservo_quickly = True
@@ -119,7 +119,7 @@ class AlexControlGUI:
         with dpg.window(label="Poses", pos=[200, 0], width=200, height=100):
             with dpg.group(horizontal=True):
                 dpg.add_text("Pose: ")
-                dpg.add_combo(items=poses, tag="poses", width=100)
+                dpg.add_combo(items=poses, tag="poses", width=100, default_value=HOME_POSE)
 
             self._run_pose = CheckBox("Run Pose", False)
 
@@ -140,6 +140,9 @@ class AlexControlGUI:
                 elif self._curr_pose == WAVE_POSE:
                     self._pose_joints = wave_pose_joints
                     self._final_positions = wave_pose[self._wave_pose_state]
+                elif self._curr_pose == DOUBLE_WAVE_POSE:
+                    self._pose_joints = double_wave_pose_joints
+                    self._final_positions = double_wave_pose[self._wave_pose_state]
                 self._initial_positions = [self._arm_control.get_desired_joint_position_by_name(name) for name in self._pose_joints]
                 print("Starting move to home pose")
             else:
@@ -152,12 +155,15 @@ class AlexControlGUI:
                     for i in range(len(self._final_positions)):
                         self._arm_control.set_desired_joint_position_by_name(self._pose_joints[i], self._final_positions[i])
 
-                    if self._curr_pose == WAVE_POSE and self._wave_pose_state < 3:
+                    if (self._curr_pose == WAVE_POSE or self._curr_pose == DOUBLE_WAVE_POSE) and self._wave_pose_state < 3:
                         self._pose_duration = 1.0
                         self._wave_pose_state += 1
                         print("Switching to state " + str(self._wave_pose_state))
                         self._initial_positions[:] = self._final_positions[:]
-                        self._final_positions = wave_pose[self._wave_pose_state]
+                        if self._curr_pose == WAVE_POSE:
+                            self._final_positions = wave_pose[self._wave_pose_state]
+                        else:
+                            self._final_positions = double_wave_pose[self._wave_pose_state]
                         print(self._initial_positions)
                         print(self._final_positions)
                         self._pose_start_time = time.time()

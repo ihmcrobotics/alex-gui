@@ -1,10 +1,11 @@
 from typing import List
 
 WAVE_POSE = "WAVE"
+DOUBLE_WAVE_POSE = "DOUBLE WAVE"
 HOME_POSE = "HOME"
 ARMS_UP_POSE = "ARMS_UP"
 
-poses = [WAVE_POSE, HOME_POSE, ARMS_UP_POSE]
+poses = [WAVE_POSE, HOME_POSE, ARMS_UP_POSE, DOUBLE_WAVE_POSE]
 
 home_pose_values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 home_pose_joints = [
@@ -57,15 +58,19 @@ wave_pose_joints = [
     "LEFT_ELBOW_Y"
 ]
 
-double_wave_pose = [[1.5, -0.6, 1.0, -1.5],
-             [1.5, -0.6, 1.0, -1.0],
-             [1.5, -0.6, 1.0, -2.0],
-             [1.5, -0.6, 1.0, -1.5]]
+double_wave_pose = [[1.5, -0.6, 1.0, -1.5, -1.5, -0.6, -1.0, -1.5],
+             [1.5, -0.6, 1.0, -1.0, -1.5, -0.6, -1.0, -1.0],
+             [1.5, -0.6, 1.0, -2.0, -1.5, -0.6, -1.0, -2.0],
+             [1.5, -0.6, 1.0, -1.5, -1.5, -0.6, -1.0, -1.5]]
 double_wave_pose_joints = [
     "LEFT_SHOULDER_X",
     "LEFT_SHOULDER_Y",
     "LEFT_SHOULDER_Z",
     "LEFT_ELBOW_Y",
+    "RIGHT_SHOULDER_X",
+    "RIGHT_SHOULDER_Y",
+    "RIGHT_SHOULDER_Z",
+    "RIGHT_ELBOW_Y",
 ]
 
 def update_pose_command(run_time: float, duration: float, initial_positions: List[float], final_positions: List[float], desired_positions: List[float]):
