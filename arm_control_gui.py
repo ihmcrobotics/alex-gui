@@ -8,6 +8,8 @@ import dearpygui.dearpygui as dpg
 
 from joint_settings import JointSettings
 
+from hand_control_gui import HandControlGUI
+
 from messages import OneDOFJointState, OneDOFJointCommand
 
 
@@ -92,6 +94,8 @@ class ArmControlGUI:
                 self._update_settings_continuously = CheckBox("Update Settings Continuously")
             self._use_custom_impedance = CheckBox("Use Custom Impedance")
             initialize_joint_parameter_tabs(self.joint_settings)
+
+        self._hand_control = HandControlGUI(['left', 'right'])
 
     def reset_sliders(self):
         for name in self.joint_names:

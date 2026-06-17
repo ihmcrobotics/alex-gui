@@ -5,7 +5,7 @@ import dearpygui.dearpygui as dpg
 from alex_communication import AlexCommunication
 from alex_control_gui import AlexControlGUI
 from alex_robot_visualizer import AlexVisualizer
-from messages import OneDOFJointCommand, OneDOFJointState, AlexState, AlexCommand
+from messages import *
 import logging
 
 def main(urdf_path: str):
@@ -20,15 +20,18 @@ def main(urdf_path: str):
     control_gui = AlexControlGUI(robot, frequency=control_frequency)
     dpg.create_viewport(title='Control GUI', width=900, height=1000, vsync=False)
     dpg.setup_dearpygui()
-    communication = AlexCommunication("10.43.3.6", frequency=comm_frequency) #"10.100.4.183")
+    communication = AlexCommunication("10.100.3.41", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
-    shared_data = {"joint_commands": {name: OneDOFJointCommand(joint_name=name) for name in robot.joint_names},
-                   "joint_states": {},
-                   "hardware_status": None,
+    shared_data = {"hardware_status": HardwareStatus(),
                    "alex_state": AlexState(),
-                   "alex_command": alex_command}
+                   "alex_command": alex_command,
+                   "left_hand_state": EZGripperState(),
+                   "right_hand_state": EZGripperState(),
+                   "left_hand_command": EZGripperCommand(),
+                   "right_hand_command": EZGripperCommand(),
+                   "hand_angles": HandJointAnglePacket()}
 
     visual_thread = threading.Thread(target=robot_visualizer.run_visualizer, args=(thread_lock, shared_data), daemon=True)
     print('Starting visualizer...')

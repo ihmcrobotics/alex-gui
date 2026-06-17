@@ -10,7 +10,7 @@ from cyclonedds.qos import Qos, Policy
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.topic import Topic
 
-from messages import AlexState, IMUState, ForceTorqueState, HardwareStatus, AlexCommand
+from messages import *
 
 
 class AlexCommunication:
@@ -26,14 +26,30 @@ class AlexCommunication:
         domain_participant = DomainParticipant(domain_id, qos)
         alex_state_topic = Topic(domain_participant, "rt/alex_state", AlexState)
         alex_command_topic = Topic(domain_participant, "rt/alex_command", AlexCommand)
-        # alex_status_topic = Topic(domain_participant, "rt/hardware_status", HardwareStatus)
+        left_hand_command_topic = Topic(domain_participant, "rt/ezgripper/left/command", EZGripperCommand)
+        right_hand_command_topic = Topic(domain_participant, "rt/ezgripper/right/command", EZGripperCommand)
+        left_hand_state_topic = Topic(domain_participant, "rt/ezgripper/left/state", EZGripperState)
+        right_hand_state_topic = Topic(domain_participant, "rt/ezgripper/right/state", EZGripperState)
+        hand_angle_topic = Topic(domain_participant, "rt/hand_angle", AlexCommand)
+        alex_status_topic = Topic(domain_participant, "rt/hardware_status", HardwareStatus)
         self.state_listener = AlexStateListener()
-        # self.status_listener = HardwareStatusListener()
+        self.left_hand_state_listener = HandStateListener()
+        self.right_hand_state_listener = HandStateListener()
+        self.hand_angle_listener = HandJointAngleListener()
+        self.status_listener = HardwareStatusListener()
         subscriber = Subscriber(domain_participant)
         self._alex_state_reader = DataReader(subscriber, alex_state_topic, qos, listener=self.state_listener)
+        self._left_hand_state_reader = DataReader(subscriber, left_hand_state_topic, qos,
+                                                   listener=self.left_hand_state_listener)
+        self._right_hand_state_reader = DataReader(subscriber, right_hand_state_topic, qos,
+                                                   listener=self.right_hand_state_listener)
+        self._hand_angle_reader = DataReader(subscriber, hand_angle_topic, qos, listener=self.hand_angle_listener)
+
         publisher = Publisher(domain_participant)
         self._alex_command_writer = DataWriter(publisher, alex_command_topic, qos)
-        # self.hardware_status_reader = DataReader(subscriber, alex_status_topic, qos, listener=self.status_listener)
+        self._left_hand_command_writer = DataWriter(publisher, left_hand_command_topic, qos)
+        self._right_hand_command_writer = DataWriter(publisher, right_hand_command_topic, qos)
+        self.hardware_status_reader = DataReader(subscriber, alex_status_topic, qos, listener=self.status_listener)
 
     def run_communication(self, lock: Union[threading.Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         try:
@@ -42,22 +58,31 @@ class AlexCommunication:
                 # print("reader guid:", self.alex_state_reader.guid)
                 # print("matched:", self.alex_state_reader.get_matched_publications())
                 alex_command = None
-                if lock is not None:
+                left_hand_command = None
+                right_hand_command = None
+                if lock is not None and shared_data is not None:
                     with lock:
                         if self.state_listener.alex_state is not None:
-                            joint_states = self.state_listener.alex_state.joint_states
                             shared_data["alex_state"] = self.state_listener.alex_state
-                            # append = len(shared_data["joint_states"]) < 1
-                            # print(append)
-                            for i in range(len(joint_states)):
-                                shared_data["joint_states"][joint_states[i].joint_name] = joint_states[i]
-                            # shared_data["hardware_status"] = self.status_listener.hardware_status
-                            # print(self.status_listener.hardware_status)
-                            # print("updated state")
-                            alex_command = shared_data["alex_command"]
+                        if self.status_listener.hardware_status is not None:
+                            shared_data["hardware_status"] = self.status_listener.hardware_status
+                        if self.left_hand_state_listener.hand_state is not None:
+                            shared_data["left_hand_state"] = self.left_hand_state_listener.hand_state
+                        if self.right_hand_state_listener.hand_state is not None:
+                            shared_data["right_hand_state"] = self.right_hand_state_listener.hand_state
+                        if self.hand_angle_listener.hand_angles is not None:
+                            shared_data["hand_angles"] = self.hand_angle_listener.hand_angles
+
+                        alex_command = shared_data["alex_command"]
+                        left_hand_command = shared_data["left_hand_command"]
+                        right_hand_command = shared_data["right_hand_command"]
+
                 if alex_command is not None:
                     self._alex_command_writer.write(alex_command)
-                    # print("sent alex command")
+                if left_hand_command is not None:
+                    self._left_hand_command_writer.write(left_hand_command)
+                if right_hand_command is not None:
+                    self._right_hand_command_writer.write(right_hand_command)
                 elapsed_time = (time.perf_counter_ns() - curr_time) * 1.0e-9
                 if elapsed_time < self.dt:
                     time.sleep(self.dt - elapsed_time)
@@ -77,8 +102,6 @@ class AlexStateListener(Listener):
 
     def on_data_available(self, reader: DataReader[AlexState]) -> None:
         self.alex_state = reader.read_next()
-        # print("state received")
-        # print(self.alex_state)
 
 class HardwareStatusListener(Listener):
     def __init__(self, **kwargs):
@@ -91,6 +114,24 @@ class HardwareStatusListener(Listener):
         self.hardware_status = reader.read_next()
         print("status received")
         # print(self.alex_state)
+
+class HandStateListener(Listener):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # self.alex_state = alex_state
+        self.hand_state = None
+
+    def on_data_available(self, reader: DataReader[EZGripperState]) -> None:
+        self.hand_state = reader.read_next()
+
+class HandJointAngleListener(Listener):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.hand_angles = None
+
+    def on_data_available(self, reader: DataReader[HandJointAnglePacket]) -> None:
+        self.hand_angles = reader.read_next()
 
 
 def get_rtps_domain_id(config_path=os.path.expanduser("~/.ihmc/IHMCNetworkParameters.ini")):

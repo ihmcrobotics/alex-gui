@@ -86,11 +86,11 @@ class AlexControlGUI:
     def _initialize_state_buttons(self):
         with dpg.window(label="Robot State", tag="robot_state", pos=[0, 300], width=400, height=250):
             with dpg.group(horizontal=True):
-                dpg.add_text(label="Time")
-                self._time = FloatDisplay("Time", 0.0)
+                dpg.add_text("Time")
+                self._time = ValueDisplay("Time", initial_value=0.0)
             with dpg.group(horizontal=True):
-                dpg.add_text(label="Low Level Master Gain")
-                self._current_ll_master_gain = FloatDisplay("Current Master Gain", 0.0)
+                dpg.add_text("Low Level Master Gain")
+                self._current_ll_master_gain = ValueDisplay("Current Master Gain", initial_value=0.0)
             self._is_faulted = CheckBox("Robot Faulted", False)
             self._are_actuators_enabled = CheckBox("Actuators Enabled", False)
             self._is_servoed = CheckBox("Robot Servoed", False)
@@ -382,7 +382,7 @@ if __name__ == "__main__":
     print('a')
     gui = AlexControlGUI(robot)
     print('b')
-    dpg.create_viewport(title='Custom Title', width=500, height=700)
+    dpg.create_viewport(title='Control GUI', width=900, height=1000, vsync=False)
     dpg.setup_dearpygui()
     print('c')
     dpg.show_viewport()
