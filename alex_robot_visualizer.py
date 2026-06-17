@@ -15,6 +15,7 @@ class AlexVisualizer:
         self.frequency = frequency
         self.dt = 1.0/self.frequency
         self.viewer_type = viewer_type
+        self._joints = {joint.name: joint for joint in self.robot.joint_list}
 
         for link in self.ghost_robot.link_list:
             link.set_alpha(0.5)
@@ -40,17 +41,18 @@ class AlexVisualizer:
         else:
             with lock:
                 # print("reading joint positions")
-                joint_states = data["joint_states"]
                 # joint_desireds = data["joint_command"]
                 command = data["alex_command"]
                 for i in range(len(self.ghost_robot.joint_list)):
                     desired = command.joint_commands[i]
                     self.ghost_robot.joint_list[i].joint_angle(desired.q_des)
 
+                joint_states = data["alex_state"].joint_states
+
                 if len(joint_states) > 0:
-                    for joint in self.robot.joint_list:
-                        state = joint_states[joint.name]
-                        joint.joint_angle(state.q)
+                    for joint_state in joint_states:
+                        joint_name = joint_state.joint_name
+                        self._joints[joint_name].joint_angle(joint_state.q)
 
                 # new_positions = data["joint_desired_positions"] #random.uniform(self.ghost_robot.joint_min_angles, self.ghost_robot.joint_max_angles)
                 # print(new_positions)

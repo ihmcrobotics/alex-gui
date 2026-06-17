@@ -19,7 +19,7 @@ def initialize_joint_position_sliders(joint_names: List[str],
     joint_sliders = {}
     for i in range(len(joint_names)):
         joint_name = joint_names[i]
-        joint_sliders[joint_name] = FloatSlider(joint_name, lower_limits[i], upper_limits[i])
+        joint_sliders[joint_name] = FloatSlider(joint_name, min_value=lower_limits[i], max_value=upper_limits[i])
         print(joint_name)
     return joint_sliders
 
@@ -95,7 +95,7 @@ class ArmControlGUI:
             self._use_custom_impedance = CheckBox("Use Custom Impedance")
             initialize_joint_parameter_tabs(self.joint_settings)
 
-        self._hand_control = HandControlGUI(['left', 'right'])
+        self._hand_control = HandControlGUI()
 
     def reset_sliders(self):
         for name in self.joint_names:
