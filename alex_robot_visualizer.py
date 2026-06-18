@@ -8,29 +8,27 @@ from threading import Lock
 
 
 class AlexVisualizer:
-    def __init__(self, urdf_path: str, ghost_path: str | None = None, frequency: float = 100.0, viewer_type: Literal['pyrender', 'trimesh'] = "pyrender"):
+    def __init__(self, urdf_path: str, ghost_path: str | None = None, frequency: float = 100.0):
         self.robot = RobotModel.from_urdf(urdf_path)
         self.ghost_robot = RobotModel.from_urdf(ghost_path if ghost_path is not None else urdf_path)
         self.ghost_robot.name = "ghost"
         self.frequency = frequency
         self.dt = 1.0/self.frequency
-        self.viewer_type = viewer_type
+        self._joints = {joint.name: joint for joint in self.robot.joint_list}
+        self._viewer = None
 
         for link in self.ghost_robot.link_list:
             link.set_alpha(0.5)
         self.initialized = False
 
     def initialize(self) -> None:
-        if self.viewer_type == 'pyrender':
-            self.viewer = PyrenderViewer(update_interval=self.dt)
-        else:
-            self.viewer = TrimeshSceneViewer(update_interval=self.dt)
+        self._viewer = PyrenderViewer(update_interval=self.dt)
 
-        self.viewer.add(self.robot)
-        self.viewer.add(self.ghost_robot)
+        self._viewer.add(self.robot)
+        self._viewer.add(self.ghost_robot)
 
-        self.viewer.show()
-        self.viewer.redraw()
+        self._viewer.show()
+        self._viewer.redraw()
         self.initialized = True
 
     def update(self, lock: Lock, data: Dict) -> None:
@@ -40,23 +38,24 @@ class AlexVisualizer:
         else:
             with lock:
                 # print("reading joint positions")
-                joint_states = data["joint_states"]
                 # joint_desireds = data["joint_command"]
                 command = data["alex_command"]
                 for i in range(len(self.ghost_robot.joint_list)):
                     desired = command.joint_commands[i]
                     self.ghost_robot.joint_list[i].joint_angle(desired.q_des)
 
+                joint_states = data["alex_state"].joint_states
+
                 if len(joint_states) > 0:
-                    for joint in self.robot.joint_list:
-                        state = joint_states[joint.name]
-                        joint.joint_angle(state.q)
+                    for joint_state in joint_states:
+                        joint_name = joint_state.joint_name
+                        self._joints[joint_name].joint_angle(joint_state.q)
 
                 # new_positions = data["joint_desired_positions"] #random.uniform(self.ghost_robot.joint_min_angles, self.ghost_robot.joint_max_angles)
                 # print(new_positions)
             # print(new_positions)
             # self.ghost_robot.angle_vector(new_positions)
-            self.viewer.redraw()
+            self._viewer.redraw()
 
     def run_visualizer(self, lock: Lock, data: Dict):
         if not self.initialized:

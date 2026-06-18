@@ -1,29 +1,37 @@
 import threading
 from threading import Lock
+import dearpygui.dearpygui as dpg
 
 from alex_communication import AlexCommunication
 from alex_control_gui import AlexControlGUI
 from alex_robot_visualizer import AlexVisualizer
-from messages import OneDOFJointCommand, OneDOFJointState, AlexState, AlexCommand
+from messages import *
 import logging
 
 def main(urdf_path: str):
+    dpg.create_context()
+    dpg.configure_app(docking=True, docking_space=True)
     thread_lock = Lock()
     control_frequency = 100.0
     comm_frequency = 100.0
-    vis_frequency = 50.0
+    vis_frequency = 200.0
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot, frequency=control_frequency)
+    dpg.create_viewport(title='Control GUI', width=900, height=1000, vsync=False)
+    dpg.setup_dearpygui()
     communication = AlexCommunication("10.43.3.6", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
-    shared_data = {"joint_commands": {name: OneDOFJointCommand(joint_name=name) for name in robot.joint_names},
-                   "joint_states": {},
-                   "hardware_status": None,
+    shared_data = {"hardware_status": HardwareStatus(),
                    "alex_state": AlexState(),
-                   "alex_command": alex_command}
+                   "alex_command": alex_command,
+                   "left_hand_state": EZGripperState(),
+                   "right_hand_state": EZGripperState(),
+                   "left_hand_command": EZGripperCommand(),
+                   "right_hand_command": EZGripperCommand(),
+                   "hand_angles": HandJointAnglePacket()}
 
     visual_thread = threading.Thread(target=robot_visualizer.run_visualizer, args=(thread_lock, shared_data), daemon=True)
     print('Starting visualizer...')
@@ -34,7 +42,9 @@ def main(urdf_path: str):
     comms_thread.start()
 
     print('Starting GUI...')
+    dpg.show_viewport()
     control_gui.run_gui(thread_lock, shared_data)
+    dpg.destroy_context()
 
 if __name__ == '__main__':
     logging.getLogger("skrobot").setLevel(logging.ERROR)

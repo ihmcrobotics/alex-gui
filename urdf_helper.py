@@ -98,7 +98,8 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
                     for visual in link.findall("visual"):
                         mesh_location = visual.find("geometry/mesh").get("filename")
                         new_location = mesh_location.replace("package://", hand_mesh_directory)
-                        new_location = new_location.replace("/", "\\")
+                        if sys.platform == "win32":
+                            new_location = new_location.replace("/", "\\")
                         visual.find("geometry/mesh").set("filename", new_location)
                 else:
                     for visual in link.findall("visual"):
