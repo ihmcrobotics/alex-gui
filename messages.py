@@ -95,71 +95,71 @@ class AlexCommand(IdlStruct, typename="alex_msgs::msg::dds_::AlexCommand_"):
 @dataclass
 class ROSDeviceStatusProvider(IdlStruct, typename="alex_msgs::msg::dds_::ROSDeviceStatusProvider_"):
     # The device name
-    name: bounded_str[70]
+    name: bounded_str[70] = ""
     # Primary device status info
-    is_responding: bool
-    is_faulted: bool
-    ethercat_state: uint8
+    is_responding: bool = False
+    is_faulted: bool = False
+    ethercat_state: uint8 = 0
 
     # More specific device status info related to isFaulted (elmo twitter fault)
-    under_voltage: bool
-    over_voltage: bool
-    sto_disabled: bool
-    current_short: bool
-    over_temp: bool
+    under_voltage: bool = False
+    over_voltage: bool = False
+    sto_disabled: bool = False
+    current_short: bool = False
+    over_temp: bool = False
 
 @dataclass
 class HardwareStatus(IdlStruct, typename="alex_msgs::msg::dds_::HardwareStatus_"):
     # Various fault info
-    robot_fault: bool
-    motor_fault: bool
-    missed_deadline_fault: bool
-    working_counter_fault: bool
-    bus_over_voltage_fault: bool
-    bus_over_current_fault: bool
+    robot_fault: bool = False
+    motor_fault: bool = False
+    missed_deadline_fault: bool = False
+    working_counter_fault: bool = False
+    bus_over_voltage_fault: bool = False
+    bus_over_current_fault: bool = False
 
     # Important EtherCAT Stuff
-    working_counter_mismatch_count: uint32
-    missed_deadlines: uint32
+    working_counter_mismatch_count: uint32 = 0
+    missed_deadlines: uint32 = 0
 
     # Power Management Board Information
-    battery_charge_percetage: float64
-    estimated_runtime_minutes: float64
-    bus_over_voltage_warning: bool
-    bus_over_current_warning: bool
-    battery_voltage_volts: float64
-    battery_current_amps: float64
-    battery_power_watts: float64
-    power_supply_voltage_volts: float64
-    power_supply_current_amps: float64
-    power_supply_power_watts: float64
-    motor_bus_voltage_volts: float64
-    motor_bus_current_amps: float64
-    motor_bus_power_watts: float64
+    battery_charge_percetage: float64 = 0.0
+    estimated_runtime_minutes: float64 = 0.0
+    bus_over_voltage_warning: bool = False
+    bus_over_current_warning: bool = False
+    battery_voltage_volts: float64 = 0.0
+    battery_current_amps: float64 = 0.0
+    battery_power_watts: float64 = 0.0
+    power_supply_voltage_volts: float64 = 0.0
+    power_supply_current_amps: float64 = 0.0
+    power_supply_power_watts: float64 = 0.0
+    motor_bus_voltage_volts: float64 = 0.0
+    motor_bus_current_amps: float64 = 0.0
+    motor_bus_power_watts: float64 = 0.0
 
     # Joint States
-    device_status_providers: sequence[ROSDeviceStatusProvider, 75]
+    device_status_providers: sequence[ROSDeviceStatusProvider, 75] = field(default_factory=list)
 
 @dataclass
 class EZGripperState(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGripperState_"):
     # Specifies the current operation mode.
-    operation_mode: uint8 # = 255
+    operation_mode: uint8 = 255
     # Temperature of the Dynamixel in Celsius
-    temperature: uint8
+    temperature: uint8 = 0
     # The current Dynamixel position
     # 0.0 = fully closed, 1.0 = fully open
-    current_position: float32
+    current_position: float32 = 0.0
     # The current amount of effort being used
     # 0.0 = no effort, 1.0 = maximum effort
-    current_effort: float32
+    current_effort: float32 = 0.0
     # Dynamixel's error code
     # See: https://emanual.robotis.com/docs/en/dxl/protocol1/#error
-    error_code: uint8
+    error_code: uint8 = 0
     # Realtime tick of the Dynamixel
     # If this value isn't changing, communication with the gripper is broken
-    realtime_tick: int32
+    realtime_tick: int32 = 0
     # Whether the hand has been calibrated
-    is_calibrated: bool
+    is_calibrated: bool = False
 
 @dataclass
 class EZGripperCommand(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGripperCommand_"):
@@ -171,10 +171,10 @@ class EZGripperCommand(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGrippe
 
 @dataclass
 class HandJointAnglePacket(IdlStruct, typename="controller_msgs::msg::dds_::HandJointAnglePacket_"):
-    sequence_id: uint64
-    robot_side: uint8
-    joint_angles: sequence[float64]
-    connected: bool
-    calibrated: bool
+    sequence_id: uint64 = 0
+    robot_side: uint8 = 0
+    joint_angles: sequence[float64] = field(default_factory=list)
+    connected: bool = False
+    calibrated: bool = False
 
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List, Dict
 
 import dearpygui.dearpygui as dpg
 
@@ -84,9 +84,26 @@ class ValueDisplay:
     def value(self):
         return self._value.value
 
-    def set(self, value: float):
+    def set(self, value: float | int | bool):
         self._value.set(value)
-        if (type(value) is float):
+        if type(value) is float:
             dpg.set_value(self._tag, str(round(self._value.value, 3)))
         else:
             dpg.set_value(self._tag, str(self._value.value))
+
+class ComboBox:
+    def __init__(self, name: str, combo_dict: Dict[str, Any], suffix = "_combo_box"):
+        self._name = name
+        self._combo_dict = combo_dict
+        combo_list = list(combo_dict)
+        self._tag = name+suffix
+        self._value = Value(combo_dict[combo_list[0]])
+        dpg.add_combo(label=name, tag=self._tag, items=combo_list, user_data=self._value, callback=update_value)
+
+    @property
+    def value(self):
+        return self._value.value
+
+    def set(self, value: str):
+        self._value.set(self._combo_dict[value])
+        dpg.set_value(self._tag, value)

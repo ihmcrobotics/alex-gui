@@ -6,23 +6,32 @@ from dearpygui_helpers import *
 from messages import OneDOFJointCommand
 hand_names = ["left_hand", "right_hand"]
 
+CALIBRATION = "Calibration"
+POSITION_CONTROL = "Position Control"
+ERROR_RESET = "Error Reset"
 
-hand_operation_modes = {"Position Control": 0,
-                        "Calibration": 1,
-                        "Error Reset": 2}
+hand_operation_modes = {POSITION_CONTROL: 0,
+                        CALIBRATION: 1,
+                        ERROR_RESET: 2}
 
 class HandControlGUI:
     def __init__(self):
 
         with dpg.window(label="Hand Control", tag="hand_control_gui", pos=[0, 550], width=500, height=400):
-            self._send_hand_desireds = Button("Send Hand Desireds")
-            self._send_hand_desireds_continuously = CheckBox("Send Hand Desireds Continuously")
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Calibrate Hands", callback=self._calibrate_hands)
+                dpg.add_button(label="Reset Errors", callback=self._reset_errors)
+                dpg.add_button(label="Operate Hands", callback=self._operate_hands)
+            with dpg.group(horizontal=True):
+                self._send_hand_desireds = Button("Send Hand Desireds")
+                self._send_hand_desireds_continuously = CheckBox("Send Hand Desireds Continuously")
             with dpg.table(label="Hand Commands", tag="hand_commands", header_row=True):
                 dpg.add_table_column(label="Command")
                 for hand_name in hand_names:
                     dpg.add_table_column(label=hand_name)
                 with dpg.table_row():
                     dpg.add_text("Operation Mode")
+                    # self._desired_operation_mode = {hand_name: ComboBox(hand_name, hand_operation_modes, suffix="_desired_op_mode") for hand_name in hand_names}
                     for hand_name in hand_names:
                         dpg.add_combo(items=list(hand_operation_modes), default_value="Position Control", tag=hand_name+"_desired_op_mode", width=150)
                 with dpg.table_row():
@@ -69,6 +78,7 @@ class HandControlGUI:
                                                     hand_name in hand_names}
 
     def read_hand_states(self, lock: threading.Lock, data: Dict[str, Any]):
+        hands_calibrated = False
         with lock:
             hand_states = {hand_names[0]: data["left_hand_state"], hand_names[1]: data["right_hand_state"]}
             for hand_name in hand_names:
@@ -79,12 +89,29 @@ class HandControlGUI:
                 self._error_code[hand_name].set(hand_states[hand_name].error_code)
                 self._realtime_tick[hand_name].set(hand_states[hand_name].realtime_tick)
                 self._is_calibrated[hand_name].set(hand_states[hand_name].is_calibrated)
+                hands_calibrated |= hand_states[hand_name].is_calibrated
 
-    # def write_hand_commands(self, lock: threading.Lock, data: Dict[str, Any]):
-    #     with lock:
-    #         hand_commands = {hand_names[0]: data["left_hand_command"], hand_names[1]: data["right_hand_command"]}
-    #         for hand_name in hand_names:
-    #             hand_commands[hand_name].operation_mode = self.
+    def write_hand_commands(self, lock: threading.Lock, data: Dict[str, Any]):
+        with lock:
+            hand_commands = {hand_names[0]: data["left_hand_command"], hand_names[1]: data["right_hand_command"]}
+            for hand_name in hand_names:
+                hand_commands[hand_name].operation_mode = self._desired_operation_mode[hand_name]
+                hand_commands[hand_name].goal_position = self._hand_desired_positions[hand_name]
+                hand_commands[hand_name].max_effort = self._max_efforts[hand_name]
+                hand_commands[hand_name].torque_on = self._torque_on[hand_name]
+
+    def _calibrate_hands(self):
+        for hand_name in hand_names:
+            self._desired_operation_mode[hand_name].set(CALIBRATION)
+
+    def _reset_errors(self):
+        for hand_name in hand_names:
+            self._desired_operation_mode[hand_name].set(ERROR_RESET)
+
+    def _operate_hands(self):
+        for hand_name in hand_names:
+            self._desired_operation_mode[hand_name].set(POSITION_CONTROL)
+            self._torque_on[hand_name].set(True)
 
 
 

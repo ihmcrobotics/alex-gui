@@ -20,7 +20,7 @@ def main(urdf_path: str):
     control_gui = AlexControlGUI(robot, frequency=control_frequency)
     dpg.create_viewport(title='Control GUI', width=900, height=1000, vsync=False)
     dpg.setup_dearpygui()
-    communication = AlexCommunication("10.43.3.6", frequency=comm_frequency) #"10.100.4.183")
+    communication = AlexCommunication("10.100.3.41", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
