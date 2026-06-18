@@ -8,30 +8,27 @@ from threading import Lock
 
 
 class AlexVisualizer:
-    def __init__(self, urdf_path: str, ghost_path: str | None = None, frequency: float = 100.0, viewer_type: Literal['pyrender', 'trimesh'] = "pyrender"):
+    def __init__(self, urdf_path: str, ghost_path: str | None = None, frequency: float = 100.0):
         self.robot = RobotModel.from_urdf(urdf_path)
         self.ghost_robot = RobotModel.from_urdf(ghost_path if ghost_path is not None else urdf_path)
         self.ghost_robot.name = "ghost"
         self.frequency = frequency
         self.dt = 1.0/self.frequency
-        self.viewer_type = viewer_type
         self._joints = {joint.name: joint for joint in self.robot.joint_list}
+        self._viewer = None
 
         for link in self.ghost_robot.link_list:
             link.set_alpha(0.5)
         self.initialized = False
 
     def initialize(self) -> None:
-        if self.viewer_type == 'pyrender':
-            self.viewer = PyrenderViewer(update_interval=self.dt)
-        else:
-            self.viewer = TrimeshSceneViewer(update_interval=self.dt)
+        self._viewer = PyrenderViewer(update_interval=self.dt)
 
-        self.viewer.add(self.robot)
-        self.viewer.add(self.ghost_robot)
+        self._viewer.add(self.robot)
+        self._viewer.add(self.ghost_robot)
 
-        self.viewer.show()
-        self.viewer.redraw()
+        self._viewer.show()
+        self._viewer.redraw()
         self.initialized = True
 
     def update(self, lock: Lock, data: Dict) -> None:
@@ -58,7 +55,7 @@ class AlexVisualizer:
                 # print(new_positions)
             # print(new_positions)
             # self.ghost_robot.angle_vector(new_positions)
-            self.viewer.redraw()
+            self._viewer.redraw()
 
     def run_visualizer(self, lock: Lock, data: Dict):
         if not self.initialized:
