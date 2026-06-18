@@ -3,8 +3,10 @@ from typing import List, Dict
 
 import dearpygui.dearpygui as dpg
 from dearpygui_helpers import *
-from messages import OneDOFJointCommand
+from messages import OneDOFJointCommand, EZGripperCommand, EZGripperState
+
 hand_names = ["left_hand", "right_hand"]
+desired_operation_suffix = "_desired_op_mode"
 
 CALIBRATION = "Calibration"
 POSITION_CONTROL = "Position Control"
@@ -25,6 +27,9 @@ class HandControlGUI:
             with dpg.group(horizontal=True):
                 self._send_hand_desireds = Button("Send Hand Desireds")
                 self._send_hand_desireds_continuously = CheckBox("Send Hand Desireds Continuously")
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Close Hands", callback=self._close_hands)
+                dpg.add_button(label="Open Hands", callback=self._open_hands)
             with dpg.table(label="Hand Commands", tag="hand_commands", header_row=True):
                 dpg.add_table_column(label="Command")
                 for hand_name in hand_names:
@@ -33,7 +38,7 @@ class HandControlGUI:
                     dpg.add_text("Operation Mode")
                     # self._desired_operation_mode = {hand_name: ComboBox(hand_name, hand_operation_modes, suffix="_desired_op_mode") for hand_name in hand_names}
                     for hand_name in hand_names:
-                        dpg.add_combo(items=list(hand_operation_modes), default_value="Position Control", tag=hand_name+"_desired_op_mode", width=150)
+                        dpg.add_combo(items=list(hand_operation_modes), default_value="Position Control", tag=hand_name+desired_operation_suffix, width=150)
                 with dpg.table_row():
                     dpg.add_text("Position")
                     self._hand_desired_positions = {hand_name: FloatSlider(hand_name, suffix="_des_position", width=150, use_name_as_label=False) for hand_name in hand_names}
@@ -77,41 +82,49 @@ class HandControlGUI:
                     self._is_calibrated = {hand_name: ValueDisplay(hand_name, suffix="_is_calibrated", initial_value=False) for
                                                     hand_name in hand_names}
 
-    def read_hand_states(self, lock: threading.Lock, data: Dict[str, Any]):
-        hands_calibrated = False
-        with lock:
-            hand_states = {hand_names[0]: data["left_hand_state"], hand_names[1]: data["right_hand_state"]}
-            for hand_name in hand_names:
-                self._current_hand_operation[hand_name].set(hand_states[hand_name].operation_mode)
-                self._current_temp[hand_name].set(hand_states[hand_name].temperature)
-                self._measured_hand_positions[hand_name].set(hand_states[hand_name].current_position)
-                self._current_effort[hand_name].set(hand_states[hand_name].current_effort)
-                self._error_code[hand_name].set(hand_states[hand_name].error_code)
-                self._realtime_tick[hand_name].set(hand_states[hand_name].realtime_tick)
-                self._is_calibrated[hand_name].set(hand_states[hand_name].is_calibrated)
-                hands_calibrated |= hand_states[hand_name].is_calibrated
+    def read_hand_states(self, hand_states: Dict[str, EZGripperState]):
+        for hand_name in hand_names:
+            self._current_hand_operation[hand_name].set(hand_states[hand_name].operation_mode)
+            self._current_temp[hand_name].set(hand_states[hand_name].temperature)
+            self._measured_hand_positions[hand_name].set(hand_states[hand_name].current_position)
+            self._current_effort[hand_name].set(hand_states[hand_name].current_effort)
+            self._error_code[hand_name].set(hand_states[hand_name].error_code)
+            self._realtime_tick[hand_name].set(hand_states[hand_name].realtime_tick)
+            self._is_calibrated[hand_name].set(hand_states[hand_name].is_calibrated)
 
-    def write_hand_commands(self, lock: threading.Lock, data: Dict[str, Any]):
-        with lock:
-            hand_commands = {hand_names[0]: data["left_hand_command"], hand_names[1]: data["right_hand_command"]}
-            for hand_name in hand_names:
-                hand_commands[hand_name].operation_mode = self._desired_operation_mode[hand_name]
-                hand_commands[hand_name].goal_position = self._hand_desired_positions[hand_name]
-                hand_commands[hand_name].max_effort = self._max_efforts[hand_name]
-                hand_commands[hand_name].torque_on = self._torque_on[hand_name]
+    def write_hand_commands(self, hand_commands: Dict[str, EZGripperCommand]):
+        for hand_name in hand_names:
+            hand_commands[hand_name].operation_mode = hand_operation_modes[dpg.get_value(item=hand_name+desired_operation_suffix)]  # self._desired_operation_mode[hand_name].value
+            hand_commands[hand_name].goal_position = self._hand_desired_positions[hand_name].value
+            hand_commands[hand_name].max_effort = self._max_efforts[hand_name].value
+            hand_commands[hand_name].torque_on = self._torque_on[hand_name].value
+
+    def update_hands(self, data: Dict[str, Any]):
+        hand_states = {hand_names[0]: data["left_hand_state"], hand_names[1]: data["right_hand_state"]}
+        hand_commands = {hand_names[0]: data["left_hand_command"], hand_names[1]: data["right_hand_command"]}
+        self.read_hand_states(hand_states)
+        self.write_hand_commands(hand_commands)
 
     def _calibrate_hands(self):
         for hand_name in hand_names:
-            self._desired_operation_mode[hand_name].set(CALIBRATION)
+            dpg.set_value(item=hand_name+desired_operation_suffix, value=CALIBRATION)
 
     def _reset_errors(self):
         for hand_name in hand_names:
-            self._desired_operation_mode[hand_name].set(ERROR_RESET)
+            dpg.set_value(item=hand_name+desired_operation_suffix, value=ERROR_RESET)
 
     def _operate_hands(self):
         for hand_name in hand_names:
-            self._desired_operation_mode[hand_name].set(POSITION_CONTROL)
+            dpg.set_value(item=hand_name+desired_operation_suffix, value=POSITION_CONTROL)
             self._torque_on[hand_name].set(True)
+
+    def _close_hands(self):
+        for hand_name in hand_names:
+            self._hand_desired_positions[hand_name].set(0.0)
+
+    def _open_hands(self):
+        for hand_name in hand_names:
+            self._hand_desired_positions[hand_name].set(1.0)
 
 
 

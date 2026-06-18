@@ -163,10 +163,10 @@ class EZGripperState(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGripperS
 
 @dataclass
 class EZGripperCommand(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGripperCommand_"):
-    operation_mode: uint8 = 255
+    operation_mode: uint8 = 0
     temperature_limit: uint8 = 75
-    goal_position: float = 0.0
-    max_effort: float = 0.3
+    goal_position: float32 = 0.0
+    max_effort: float32 = 0.3
     torque_on: bool = False
 
 @dataclass

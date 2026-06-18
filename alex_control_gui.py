@@ -29,6 +29,7 @@ class AlexControlGUI:
         self._initialize_state_buttons()
         print("cah")
         self._arm_control = ArmControlGUI(robot)
+        self._hand_control = HandControlGUI()
         self._initialize_pose_buttons()
         self._reset = False
 
@@ -201,18 +202,19 @@ class AlexControlGUI:
                 with lock:
                     self._read_state(shared_data["alex_state"])
                     self._write_command(shared_data["alex_command"])
+                    self._hand_control.update_hands(shared_data)
 
 
             elapsed_time = (time.perf_counter_ns() - self._loop_start_time) * 1.0e-9
-            if self._loop_num >= self._loops_to_avg:
-                avg_loop_time = self._avg_loop_time / self._loop_num
-                print("Avg loop time: ", avg_loop_time)
-                print("Avg freq: ", 1.0/ avg_loop_time)
-                print("Percent missed loops: ", 100 * self._missed_loops / self._loop_num)
-                self._avg_loop_time = 0.0
-                self._loop_num = 0
-                self._missed_loops = 0
-                print(elapsed_time)
+            # if self._loop_num >= self._loops_to_avg:
+            #     avg_loop_time = self._avg_loop_time / self._loop_num
+            #     print("Avg loop time: ", avg_loop_time)
+            #     print("Avg freq: ", 1.0/ avg_loop_time)
+            #     print("Percent missed loops: ", 100 * self._missed_loops / self._loop_num)
+            #     self._avg_loop_time = 0.0
+            #     self._loop_num = 0
+            #     self._missed_loops = 0
+            #     print(elapsed_time)
             if elapsed_time < self.dt:
                 time.sleep(self.dt - elapsed_time)
             else:

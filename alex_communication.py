@@ -35,7 +35,7 @@ class AlexCommunication:
         self.state_listener = AlexStateListener()
         self.left_hand_state_listener = HandStateListener()
         self.right_hand_state_listener = HandStateListener()
-        self.hand_angle_listener = HandJointAngleListener()
+        # self.hand_angle_listener = HandJointAngleListener()
         self.status_listener = HardwareStatusListener()
         subscriber = Subscriber(domain_participant)
         self._alex_state_reader = DataReader(subscriber, alex_state_topic, qos, listener=self.state_listener)
@@ -43,13 +43,13 @@ class AlexCommunication:
                                                    listener=self.left_hand_state_listener)
         self._right_hand_state_reader = DataReader(subscriber, right_hand_state_topic,
                                                    listener=self.right_hand_state_listener)
-        self._hand_angle_reader = DataReader(subscriber, hand_angle_topic, listener=self.hand_angle_listener)
+        # self._hand_angle_reader = DataReader(subscriber, hand_angle_topic, listener=self.hand_angle_listener)
+        self.hardware_status_reader = DataReader(subscriber, alex_status_topic, listener=self.status_listener)
 
         publisher = Publisher(domain_participant)
         self._alex_command_writer = DataWriter(publisher, alex_command_topic, qos)
         self._left_hand_command_writer = DataWriter(publisher, left_hand_command_topic, qos)
         self._right_hand_command_writer = DataWriter(publisher, right_hand_command_topic, qos)
-        self.hardware_status_reader = DataReader(subscriber, alex_status_topic, listener=self.status_listener)
 
     def run_communication(self, lock: Union[threading.Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         try:
@@ -70,8 +70,8 @@ class AlexCommunication:
                             shared_data["left_hand_state"] = self.left_hand_state_listener.hand_state
                         if self.right_hand_state_listener.hand_state is not None:
                             shared_data["right_hand_state"] = self.right_hand_state_listener.hand_state
-                        if self.hand_angle_listener.hand_angles is not None:
-                            shared_data["hand_angles"] = self.hand_angle_listener.hand_angles
+                        # if self.hand_angle_listener.hand_angles is not None:
+                        #     shared_data["hand_angles"] = self.hand_angle_listener.hand_angles
 
                         alex_command = shared_data["alex_command"]
                         left_hand_command = shared_data["left_hand_command"]

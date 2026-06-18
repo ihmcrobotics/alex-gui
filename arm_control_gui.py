@@ -95,8 +95,6 @@ class ArmControlGUI:
             self._use_custom_impedance = CheckBox("Use Custom Impedance")
             initialize_joint_parameter_tabs(self.joint_settings)
 
-        self._hand_control = HandControlGUI()
-
     def reset_sliders(self):
         for name in self.joint_names:
             self._desired_joint_positions[name].set(self.measured_joint_positions[name])
