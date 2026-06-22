@@ -6,6 +6,7 @@ from threading import Lock
 import math
 from skrobot.model import RobotModel
 from joint_control_gui import *
+from hardware_status import *
 import dearpygui.dearpygui as dpg
 from dearpygui_helpers import *
 
@@ -19,20 +20,21 @@ robot_control_state = {DO_NOTHING: 0,
                        USER_CONTROL: 2}
 
 class AlexControlGUI:
-    def __init__(self, robot: RobotModel, frequency: float= 100.0):
+    def __init__(self, robot: RobotModel, frequency: float= 100.0, width: int=1400, height: int=1000):
         dpg.create_context()
         dpg.configure_app(docking=True, docking_space=True)
         self.frequency = frequency
         self.dt = 1.0 / self.frequency
 
-        self._viewer_width = 1400
-        self._viewer_height = 1000
+        self._viewer_width = width
+        self._viewer_height = height
 
         self._initialize_startup_shutdown_buttons()
         self._initialize_state_buttons()
         self._arm_control = JointControlGUI(robot, self._viewer_width)
         self._hand_control = HandControlGUI()
         self._initialize_pose_buttons()
+        self._hardware_status = HardwareStatusGUI()
         self._reset = False
 
         self._avg_loop_time = 0.0
@@ -44,7 +46,7 @@ class AlexControlGUI:
         joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_list]
         self.alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(robot.joint_names))
 
-        dpg.create_viewport(title='Control GUI', width=self._viewer_width, height=self._viewer_height, vsync=False)
+        dpg.create_viewport(title='Control GUI', width=self._viewer_width, height=self._viewer_height, vsync=False, x_pos=0, y_pos=0)
         dpg.setup_dearpygui()
 
 
@@ -128,6 +130,18 @@ class AlexControlGUI:
 
             self._run_pose = CheckBox("Run Pose", False)
 
+    def _initialize_status_buttons(self):
+        with dpg.window(label="Hardware Status", pos = [400, 0], width = 200, height=600):
+            with dpg.group(horizontal=True):
+                self._robot_fault = CheckBox("Robot Fault", False)
+                dpg.add_checkbox(label="Motor Fault")
+            with dpg.group(horizontal=True):
+                dpg.add_checkbox(label="Missed Deadline Fault")
+                dpg.add_checkbox(label="Working Counter Fault")
+            with dpg.group(horizontal=True):
+                dpg.add_checkbox(label="Bus Over Voltage Fault")
+                dpg.add_checkbox(label="Bus Over Current Fault")
+
     def _run_poses(self):
         if self._run_pose.value:
             if not self._pose_running:
@@ -181,7 +195,6 @@ class AlexControlGUI:
                     print("Completed move to home pose")
                 self._arm_control.send_desireds()
 
-
     def update_gui(self):
         viewer_width = dpg.get_viewport_client_width()
         if viewer_width != self._viewer_width:
@@ -192,7 +205,6 @@ class AlexControlGUI:
             self._run_servo_unservo()
         self._run_poses()
         dpg.render_dearpygui_frame()
-
 
     def _reset_sliders(self):
         self._arm_control.reset_sliders()
@@ -210,6 +222,7 @@ class AlexControlGUI:
                     self._read_state(shared_data["alex_state"])
                     self._write_command(shared_data["alex_command"])
                     self._hand_control.update_hands(shared_data)
+                    self._hardware_status.update(shared_data["hardware_status"], shared_data["alex_state"].time)
 
 
             elapsed_time = (time.perf_counter_ns() - self._loop_start_time) * 1.0e-9
@@ -269,7 +282,6 @@ class AlexControlGUI:
             self._servo_timer = time.time()
             self._high_level_servo_complete = False
 
-
     def _run_servo_unservo(self):
         servo_ratio = (time.time() - self._servo_timer) / 2.0
 
@@ -293,8 +305,6 @@ class AlexControlGUI:
                 dpg.configure_item("servo_robot", label="Servo Robot", enabled=True)
                 self._requested_master_gain.set(0.0)
                 print("Robot is unservoed")
-
-
 
     def _run_auto_startup_shutdown(self):
         if not self._request_auto_startup and not self._request_auto_shutdown:

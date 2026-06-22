@@ -8,15 +8,18 @@ from alex_robot_visualizer import AlexVisualizer
 from messages import *
 import logging
 from urdf_helper import merge_urdfs, PURDUE_FULL_PARTS, PURDUE_CYCLOIDFOREARMS_PARTS
+from screeninfo import get_monitors
 
 def main(urdf_path: str):
+    monitor = get_monitors()[0]
+    height, width = monitor.height, monitor.width
     thread_lock = Lock()
     control_frequency = 100.0
     comm_frequency = 100.0
     vis_frequency = 200.0
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
-    control_gui = AlexControlGUI(robot, frequency=control_frequency)
+    control_gui = AlexControlGUI(robot, frequency=control_frequency, width=int(width/2), height=height)
     communication = AlexCommunication("127.0.0.1", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
@@ -40,6 +43,7 @@ def main(urdf_path: str):
 
     print('Starting GUI...')
     dpg.show_viewport()
+    # dpg.maximize_viewport()
     control_gui.run_gui(thread_lock, shared_data)
     dpg.destroy_context()
 
