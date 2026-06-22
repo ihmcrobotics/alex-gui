@@ -7,10 +7,9 @@ from alex_control_gui import AlexControlGUI
 from alex_robot_visualizer import AlexVisualizer
 from messages import *
 import logging
+from urdf_helper import merge_urdfs, PURDUE_FULL_PARTS, PURDUE_CYCLOIDFOREARMS_PARTS
 
 def main(urdf_path: str):
-    dpg.create_context()
-    dpg.configure_app(docking=True, docking_space=True)
     thread_lock = Lock()
     control_frequency = 100.0
     comm_frequency = 100.0
@@ -18,9 +17,7 @@ def main(urdf_path: str):
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot, frequency=control_frequency)
-    dpg.create_viewport(title='Control GUI', width=900, height=1000, vsync=False)
-    dpg.setup_dearpygui()
-    communication = AlexCommunication("10.43.3.6", frequency=comm_frequency) #"10.100.4.183")
+    communication = AlexCommunication("127.0.0.1", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
@@ -48,5 +45,6 @@ def main(urdf_path: str):
 
 if __name__ == '__main__':
     logging.getLogger("skrobot").setLevel(logging.ERROR)
-    path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe_full.urdf"
+    path = merge_urdfs("purdue", PURDUE_FULL_PARTS, fixed_joints=["PEDESTAL_F"], output_name="purdue_full")
+    # path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe_full.urdf"
     main(path)

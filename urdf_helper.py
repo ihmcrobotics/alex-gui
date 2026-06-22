@@ -19,7 +19,7 @@ else:
     HANDS_PATH = "../ihmc-alex-sdk/alex-ros2/ihmc_hands_ros2/"
 
 def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[str] = [""],
-                allowed_collisions: List[str] | None = None, output_name: str = "temp"):
+                allowed_collisions: List[str] | None = [""], output_name: str = "temp"):
     print(ALEX_URDF_PATH)
     print(HANDS_PATH)
     prefix = "alex_"

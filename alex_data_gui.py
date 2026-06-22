@@ -8,11 +8,11 @@ from typing import List, Dict
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from arm_control_gui import ArmControlGUI
+from joint_control_gui import JointControlGUI
 
 
 class AlexDataGUI:
-    def __init__(self, root, arm_control: ArmControlGUI):
+    def __init__(self, root, arm_control: JointControlGUI):
         self.root = root
         self.plotter_window = tk.Toplevel(root)
         self._joint_names = arm_control.joint_names

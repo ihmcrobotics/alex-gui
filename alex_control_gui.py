@@ -5,7 +5,7 @@ from poses import *
 from threading import Lock
 import math
 from skrobot.model import RobotModel
-from arm_control_gui import *
+from joint_control_gui import *
 import dearpygui.dearpygui as dpg
 from dearpygui_helpers import *
 
@@ -20,15 +20,17 @@ robot_control_state = {DO_NOTHING: 0,
 
 class AlexControlGUI:
     def __init__(self, robot: RobotModel, frequency: float= 100.0):
+        dpg.create_context()
+        dpg.configure_app(docking=True, docking_space=True)
         self.frequency = frequency
         self.dt = 1.0 / self.frequency
 
-        print("ah")
+        self._viewer_width = 1400
+        self._viewer_height = 1000
+
         self._initialize_startup_shutdown_buttons()
-        print("bah")
         self._initialize_state_buttons()
-        print("cah")
-        self._arm_control = ArmControlGUI(robot)
+        self._arm_control = JointControlGUI(robot, self._viewer_width)
         self._hand_control = HandControlGUI()
         self._initialize_pose_buttons()
         self._reset = False
@@ -41,6 +43,9 @@ class AlexControlGUI:
 
         joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_list]
         self.alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(robot.joint_names))
+
+        dpg.create_viewport(title='Control GUI', width=self._viewer_width, height=self._viewer_height, vsync=False)
+        dpg.setup_dearpygui()
 
 
     def _initialize_startup_shutdown_buttons(self):
@@ -59,7 +64,6 @@ class AlexControlGUI:
         self._robot_control_state = DO_NOTHING
         self._auto_startup_shutdown_tag = "request_auto"
         self._safe_power_up_down_tag = "request_safe"
-        print("heh")
 
         with dpg.window(label="Auto Startup/Shutdown", tag="auto_startup_shutdown", pos=[0, 0], width=200, height=100):
             dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, callback=self._run_auto_startup_shutdown)
@@ -85,7 +89,7 @@ class AlexControlGUI:
         self._request_auto_shutdown = True
 
     def _initialize_state_buttons(self):
-        with dpg.window(label="Robot State", tag="robot_state", pos=[0, 300], width=400, height=250):
+        with dpg.window(label="Robot State", tag="robot_state", pos=[0, 300], width=400, height=220):
             with dpg.group(horizontal=True):
                 dpg.add_text("Time")
                 self._time = ValueDisplay("Time", initial_value=0.0)
@@ -179,6 +183,9 @@ class AlexControlGUI:
 
 
     def update_gui(self):
+        viewer_width = dpg.get_viewport_client_width()
+        if viewer_width != self._viewer_width:
+            self._arm_control.update_window_positions(viewer_width)
         self._update_auto_startup_shutdown()
         self._update_safe_power_up_down()
         if not self._high_level_servo_complete:
