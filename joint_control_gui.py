@@ -23,7 +23,7 @@ def initialize_joint_position_sliders(joint_names: List[str],
         print(joint_name)
     return joint_sliders
 
-def initialize_joint_parameter_tabs(joint_settings: Dict[str, JointSettings]) -> None:
+def initialize_joint_parameter_tabs(joint_settings: Dict[str, JointSettings], monitor_scale: float=1.0) -> None:
 
     with dpg.tab_bar():
         with dpg.tab(label="Impedance"):
@@ -37,10 +37,10 @@ def initialize_joint_parameter_tabs(joint_settings: Dict[str, JointSettings]) ->
                         dpg.add_text(name)
                         dpg.add_input_float(tag=name+"_stiffness",
                                             default_value=settings.stiffness,
-                                            width=100)
+                                            width=int(100*monitor_scale))
                         dpg.add_input_float(tag=name + "_damping",
                                             default_value=settings.damping,
-                                            width=100)
+                                            width=int(100*monitor_scale))
 
         with dpg.tab(label="Limits"):
             with dpg.table(header_row=True):
@@ -53,16 +53,16 @@ def initialize_joint_parameter_tabs(joint_settings: Dict[str, JointSettings]) ->
                         dpg.add_text(name)
                         dpg.add_input_float(tag=name+"_max_torque",
                                             default_value=settings.max_torque,
-                                            width=100)
+                                            width=int(100*monitor_scale))
                         dpg.add_input_float(tag=name + "_max_position_error",
                                             default_value=settings.max_position_error,
-                                            width=100)
+                                            width=int(100*monitor_scale))
                         dpg.add_input_float(tag=name + "_max_velocity_error",
                                             default_value=settings.max_velocity_error,
-                                            width=100)
+                                            width=int(100*monitor_scale))
 
 class JointControlGUI:
-    def __init__(self, robot: RobotModel, viewer_width: int) -> None:
+    def __init__(self, robot: RobotModel, monitor_scale: float=1.0) -> None:
         self.robot = robot
 
         self.settings_dimensions=[0,0]

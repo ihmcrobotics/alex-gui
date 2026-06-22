@@ -17,7 +17,7 @@ hand_operation_modes = {POSITION_CONTROL: 0,
                         ERROR_RESET: 2}
 
 class HandControlGUI:
-    def __init__(self):
+    def __init__(self, monitor_scale: float=1.0):
 
         with dpg.window(label="Hand Control", tag="hand_control_gui"):
             with dpg.group(horizontal=True):
@@ -35,19 +35,19 @@ class HandControlGUI:
                     dpg.add_text("Operation Mode")
                     # self._desired_operation_mode = {hand_name: ComboBox(hand_name, hand_operation_modes, suffix="_desired_op_mode") for hand_name in hand_names}
                     for hand_name in hand_names:
-                        dpg.add_combo(items=list(hand_operation_modes), default_value="Position Control", tag=hand_name+desired_operation_suffix, width=140)
+                        dpg.add_combo(items=list(hand_operation_modes), default_value="Position Control", tag=hand_name+desired_operation_suffix, width=int(140*monitor_scale))
                 with dpg.table_row():
                     dpg.add_text("Position")
-                    self._hand_desired_positions = {hand_name: FloatSlider(hand_name, suffix="_des_position", width=140, use_name_as_label=False) for hand_name in hand_names}
+                    self._hand_desired_positions = {hand_name: FloatSlider(hand_name, suffix="_des_position", width=int(140 * monitor_scale), use_name_as_label=False) for hand_name in hand_names}
                 with dpg.table_row():
                     dpg.add_text("Max Effort")
-                    self._max_efforts = {hand_name: FloatSlider(hand_name, suffix="_max_effort", width=140, max_value=0.8, initial_value=0.3, use_name_as_label=False) for hand_name in hand_names}
+                    self._max_efforts = {hand_name: FloatSlider(hand_name, suffix="_max_effort", width=int(140 * monitor_scale), max_value=0.8, initial_value=0.3, use_name_as_label=False) for hand_name in hand_names}
                 with dpg.table_row():
                     dpg.add_text("Torque On")
                     self._torque_on = {hand_name: CheckBox(hand_name) for hand_name in hand_names}
 
             with dpg.table(label="Hand States", tag="hand_states", header_row=True):
-                dpg.add_table_column(label="State", width=40, width_fixed=True)
+                dpg.add_table_column(label="State")
                 for hand_name in hand_names:
                     dpg.add_table_column(label=hand_name)
                 with dpg.table_row():

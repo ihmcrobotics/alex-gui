@@ -210,7 +210,9 @@ class AlexControlGUI:
                 self._first_run = False
         viewer_width = dpg.get_viewport_client_width()
         if viewer_width != self._viewer_width:
-            self._arm_control.update_window_positions(viewer_width)
+            self._arm_control.set_spacing()
+            self._hand_control.set_spacing(x_pos=dpg.get_viewport_client_width() - self._arm_control.control_dimensions[0])
+            # self._arm_control.update_window_positions(viewer_width)
         self._update_auto_startup_shutdown()
         self._update_safe_power_up_down()
         if not self._high_level_servo_complete:
