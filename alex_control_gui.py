@@ -32,8 +32,8 @@ class AlexControlGUI:
 
         self._initialize_startup_shutdown_buttons()
         self._initialize_state_buttons()
-        self._arm_control = JointControlGUI(robot, self._viewer_width)
-        self._hand_control = HandControlGUI()
+        self._arm_control = JointControlGUI(robot, monitor_scale)
+        self._hand_control = HandControlGUI(monitor_scale)
         self._initialize_pose_buttons()
         self._hardware_status = HardwareStatusGUI()
         self._reset = False
