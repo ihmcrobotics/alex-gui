@@ -20,11 +20,12 @@ robot_control_state = {DO_NOTHING: 0,
                        USER_CONTROL: 2}
 
 class AlexControlGUI:
-    def __init__(self, robot: RobotModel, frequency: float= 100.0, width: int=1400, height: int=1000):
+    def __init__(self, robot: RobotModel, frequency: float= 100.0, width: int=1400, height: int=1000, monitor_scale: float = 1.0):
         dpg.create_context()
         dpg.configure_app(docking=True, docking_space=True)
         self.frequency = frequency
         self.dt = 1.0 / self.frequency
+        self._monitor_scale = monitor_scale
 
         self._viewer_width = width
         self._viewer_height = height
@@ -42,12 +43,19 @@ class AlexControlGUI:
         self._loop_num = 0
         self._loops_to_avg = 5 * self.frequency
         self._missed_loops = 0
+        self._auto_dimensions = [0,0]
+        self._manual_dimensions = [0,0]
+        self._state_dimensions = [0,0]
+        self._pose_dimensions = [0,0]
 
         joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_list]
         self.alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(robot.joint_names))
 
         dpg.create_viewport(title='Control GUI', width=self._viewer_width, height=self._viewer_height, vsync=False, x_pos=0, y_pos=0)
         dpg.setup_dearpygui()
+        dpg.set_global_font_scale(monitor_scale)
+        print(dpg.get_item_rect_size("auto_startup_shutdown"))
+        self._first_run=True
 
 
     def _initialize_startup_shutdown_buttons(self):
@@ -67,12 +75,11 @@ class AlexControlGUI:
         self._auto_startup_shutdown_tag = "request_auto"
         self._safe_power_up_down_tag = "request_safe"
 
-        with dpg.window(label="Auto Startup/Shutdown", tag="auto_startup_shutdown", pos=[0, 0], width=200, height=100):
+        with dpg.window(label="Auto Startup", tag="auto_startup_shutdown", pos=[0, 0]):
             dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, callback=self._run_auto_startup_shutdown)
             dpg.add_button(label="Emergency Stop", callback=self._emergency_stop)
-
-
-        with dpg.window(label="Manual Startup/Shutdown", tag="manual_startup_shutdown", pos=[0, 100], width=400, height=200):
+        
+        with dpg.window(label="Manual Startup", tag="manual_startup_shutdown"):
             dpg.add_button(label="Request Safe Power Up", tag=self._safe_power_up_down_tag, callback=self._run_safe_power_up_down)
             self._clear_faults = Button("Clear Faults")
             self._enable_actuators = CheckBox("Enable Actuators", False)
@@ -91,7 +98,7 @@ class AlexControlGUI:
         self._request_auto_shutdown = True
 
     def _initialize_state_buttons(self):
-        with dpg.window(label="Robot State", tag="robot_state", pos=[0, 300], width=400, height=220):
+        with dpg.window(label="Robot State", tag="robot_state", pos=[0, 300]):
             with dpg.group(horizontal=True):
                 dpg.add_text("Time")
                 self._time = ValueDisplay("Time", initial_value=0.0)
@@ -123,24 +130,12 @@ class AlexControlGUI:
         self._curr_positions = [self._arm_control.get_desired_joint_position_by_name(name) for name in joint_names]
         self._curr_pose = HOME_POSE
 
-        with dpg.window(label="Poses", pos=[200, 0], width=200, height=100):
+        with dpg.window(label="Poses", tag="pose_window", pos=[200, 0]):
             with dpg.group(horizontal=True):
                 dpg.add_text("Pose: ")
                 dpg.add_combo(items=poses, tag="poses", width=100, default_value=HOME_POSE)
 
             self._run_pose = CheckBox("Run Pose", False)
-
-    def _initialize_status_buttons(self):
-        with dpg.window(label="Hardware Status", pos = [400, 0], width = 200, height=600):
-            with dpg.group(horizontal=True):
-                self._robot_fault = CheckBox("Robot Fault", False)
-                dpg.add_checkbox(label="Motor Fault")
-            with dpg.group(horizontal=True):
-                dpg.add_checkbox(label="Missed Deadline Fault")
-                dpg.add_checkbox(label="Working Counter Fault")
-            with dpg.group(horizontal=True):
-                dpg.add_checkbox(label="Bus Over Voltage Fault")
-                dpg.add_checkbox(label="Bus Over Current Fault")
 
     def _run_poses(self):
         if self._run_pose.value:
@@ -194,8 +189,25 @@ class AlexControlGUI:
 
                     print("Completed move to home pose")
                 self._arm_control.send_desireds()
+    
+    def _set_spacing(self):
+        self._arm_control.set_spacing()
+        dpg.set_item_pos("manual_startup_shutdown", [0, self._auto_dimensions[1]])
+        dpg.set_item_pos("robot_state", [0, self._auto_dimensions[1] + self._manual_dimensions[1]])
+        dpg.set_item_pos("pose_window", [self._auto_dimensions[0], 0])
+        
+        self._hand_control.set_spacing(x_pos=dpg.get_viewport_client_width() - self._arm_control.control_dimensions[0])
+        self._hardware_status.set_spacing(y_pos=self._auto_dimensions[1]+self._manual_dimensions[1]+self._state_dimensions[1], right_aligned=False)
 
     def update_gui(self):
+        if self._first_run:
+            self._auto_dimensions = dpg.get_item_rect_size("auto_startup_shutdown")
+            self._manual_dimensions = dpg.get_item_rect_size("manual_startup_shutdown")
+            self._state_dimensions = dpg.get_item_rect_size("robot_state")
+            self._pose_dimensions = dpg.get_item_rect_size("pose_window")
+            if self._auto_dimensions[0] > 100:
+                self._set_spacing()
+                self._first_run = False
         viewer_width = dpg.get_viewport_client_width()
         if viewer_width != self._viewer_width:
             self._arm_control.update_window_positions(viewer_width)

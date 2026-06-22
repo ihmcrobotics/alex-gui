@@ -12,15 +12,23 @@ from screeninfo import get_monitors
 
 def main(urdf_path: str):
     monitor = get_monitors()[0]
+    print(monitor)
+    print(monitor.width)
+    monitor_scale=2.0
+    # if monitor.width < 2000:
+    #     monitor_scale = 1.0
+    # else: 
+    #     monitor_scale = 1.5
     height, width = monitor.height, monitor.width
+    
     thread_lock = Lock()
     control_frequency = 100.0
     comm_frequency = 100.0
-    vis_frequency = 200.0
+    vis_frequency = 50.0
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
-    control_gui = AlexControlGUI(robot, frequency=control_frequency, width=int(width/2), height=height)
-    communication = AlexCommunication("127.0.0.1", frequency=comm_frequency) #"10.100.4.183")
+    control_gui = AlexControlGUI(robot, frequency=control_frequency, monitor_scale=monitor_scale, height=height, width=int(3*width/4)) #, width=int(width/2), height=height)
+    communication = AlexCommunication("10.43.3.3", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
@@ -42,6 +50,7 @@ def main(urdf_path: str):
     comms_thread.start()
 
     print('Starting GUI...')
+    # dpg.set_global_font_scale(1.5)
     dpg.show_viewport()
     # dpg.maximize_viewport()
     control_gui.run_gui(thread_lock, shared_data)

@@ -19,6 +19,11 @@ class AlexCommunication:
         print(os.environ.get("CYCLONEDDS_URI"))
         self.alex_state = None
 
+        self._missed_loops = 0
+        self._avg_time = 0.0
+        self._num_loops = 0
+
+
         self.frequency = frequency
         self.dt = 1.0/frequency
         qos = Qos(Policy.Reliability.Reliable(max_blocking_time=1000))
@@ -30,12 +35,10 @@ class AlexCommunication:
         right_hand_command_topic = Topic(domain_participant, "rt/ezgripper/right/command", EZGripperCommand)
         left_hand_state_topic = Topic(domain_participant, "rt/ezgripper/left/state", EZGripperState)
         right_hand_state_topic = Topic(domain_participant, "rt/ezgripper/right/state", EZGripperState)
-        hand_angle_topic = Topic(domain_participant, "rt/ihmc/alex/humanoid_control/output/hand_joint_angle", HandJointAnglePacket)
         alex_status_topic = Topic(domain_participant, "rt/hardware_status", HardwareStatus)
         self.state_listener = AlexStateListener()
         self.left_hand_state_listener = HandStateListener()
         self.right_hand_state_listener = HandStateListener()
-        # self.hand_angle_listener = HandJointAngleListener()
         self.status_listener = HardwareStatusListener()
         subscriber = Subscriber(domain_participant)
         self._alex_state_reader = DataReader(subscriber, alex_state_topic, qos, listener=self.state_listener)
@@ -43,7 +46,6 @@ class AlexCommunication:
                                                    listener=self.left_hand_state_listener)
         self._right_hand_state_reader = DataReader(subscriber, right_hand_state_topic,
                                                    listener=self.right_hand_state_listener)
-        # self._hand_angle_reader = DataReader(subscriber, hand_angle_topic, listener=self.hand_angle_listener)
         self.hardware_status_reader = DataReader(subscriber, alex_status_topic, listener=self.status_listener)
 
         publisher = Publisher(domain_participant)
@@ -54,12 +56,10 @@ class AlexCommunication:
     def run_communication(self, lock: Union[threading.Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
         try:
             while True:
+                self._num_loops += 1
                 curr_time = time.perf_counter_ns()
                 # print("reader guid:", self.alex_state_reader.guid)
                 # print("matched:", self.alex_state_reader.get_matched_publications())
-                alex_command = None
-                left_hand_command = None
-                right_hand_command = None
                 if lock is not None and shared_data is not None:
                     with lock:
                         if self.state_listener.alex_state is not None:
@@ -70,24 +70,30 @@ class AlexCommunication:
                             shared_data["left_hand_state"] = self.left_hand_state_listener.hand_state
                         if self.right_hand_state_listener.hand_state is not None:
                             shared_data["right_hand_state"] = self.right_hand_state_listener.hand_state
-                        # if self.hand_angle_listener.hand_angles is not None:
-                        #     shared_data["hand_angles"] = self.hand_angle_listener.hand_angles
 
-                        alex_command = shared_data["alex_command"]
-                        left_hand_command = shared_data["left_hand_command"]
-                        right_hand_command = shared_data["right_hand_command"]
+                        self._alex_command_writer.write(shared_data["alex_command"])
+                        self._left_hand_command_writer.write(shared_data["left_hand_command"])
+                        self._right_hand_command_writer.write(shared_data["right_hand_command"])
 
-                if alex_command is not None:
-                    self._alex_command_writer.write(alex_command)
-                if left_hand_command is not None:
-                    self._left_hand_command_writer.write(left_hand_command)
-                if right_hand_command is not None:
-                    self._right_hand_command_writer.write(right_hand_command)
+                # if alex_command is not None:
+                #     self._alex_command_writer.write(alex_command)
+                # if left_hand_command is not None:
+                #     self._left_hand_command_writer.write(left_hand_command)
+                # if right_hand_command is not None:
+                #     self._right_hand_command_writer.write(right_hand_command)
                 elapsed_time = (time.perf_counter_ns() - curr_time) * 1.0e-9
+                self._avg_time += elapsed_time
+                if self._num_loops > 10 * self.frequency:
+                    print(self._avg_time / self._num_loops)
+                    print(100.0 * self._missed_loops / self._num_loops)
+                    self._num_loops = 0
+                    self._missed_loops = 0
+                    self._avg_time = 0.0
                 if elapsed_time < self.dt:
                     time.sleep(self.dt - elapsed_time)
                 else:
-                    print("Missed comms loop")
+                    self._missed_loops += 1
+                    # print("Missed comms loop")
         except KeyboardInterrupt:
             print("\nStopping subscription.")
 

@@ -20,8 +20,6 @@ else:
 
 def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[str] = [""],
                 allowed_collisions: List[str] | None = [""], output_name: str = "temp"):
-    print(ALEX_URDF_PATH)
-    print(HANDS_PATH)
     prefix = "alex_"
 
     excluded_name = "IMU"
@@ -39,7 +37,6 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
     if robot_version == "purdue":
         robot_prefix = prefix + robot_version
         base_urdf_file = main_directory + robot_prefix + ".headTorso.urdf"
-    print(robot_prefix)
     # base_urdf_file = main_directory + robot_prefix + ".lowerBody.urdf"
     base_urdf = etree.parse(base_urdf_file)
     base_robot = base_urdf.getroot()
@@ -66,7 +63,6 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
             base_robot.remove(gazebo)
 
     for wanted_part in wanted_parts:
-        print(wanted_part)
         if "gen2" in wanted_part:
             if sys.platform == "win32":
                 directory = HANDS_PATH + "urdf\\ezGripper\\"
@@ -82,8 +78,6 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
         else:
             directory = main_directory
             filename = robot_prefix + "." + wanted_part + ".urdf"
-        print(directory)
-        print(filename)
         curr_urdf = etree.parse(directory + filename).getroot()
 
         for joint in curr_urdf.findall("joint"):
@@ -120,7 +114,7 @@ def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[
     if allowed_collisions is not None:
         for link in base_robot.findall(".//link"):
             for collision in link.findall("collision"):
-                print(collision.get("name"))
+                # print(collision.get("name"))
                 if collision.get("name") not in allowed_collisions:
                     link.remove(collision)
 

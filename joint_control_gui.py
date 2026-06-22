@@ -64,8 +64,9 @@ def initialize_joint_parameter_tabs(joint_settings: Dict[str, JointSettings]) ->
 class JointControlGUI:
     def __init__(self, robot: RobotModel, viewer_width: int) -> None:
         self.robot = robot
-        self._window_width = 450
-        self._joint_control_height = 450
+
+        self.settings_dimensions=[0,0]
+        self.control_dimensions=[0,0]
 
         self.joint_names = []
         self.joint_list = []
@@ -83,14 +84,14 @@ class JointControlGUI:
                 self.joint_settings[joint.name] = JointSettings(max_torque=joint.max_joint_torque)
 
         self.measured_joint_positions = {joint: 0.0 for joint in self.joint_names}
-        with dpg.window(label="Joint Control", tag="joint_control", pos=[viewer_width - self._window_width, 0], width=self._window_width, height=self._joint_control_height):
+        with dpg.window(label="Joint Control", tag="joint_control"):
             with dpg.group(horizontal=True):
                 self._send_desireds = Button("Send Desireds")
                 self._send_desireds_continuously = CheckBox("Send Desireds Continuously")
             dpg.add_button(label="Reset sliders", callback=self.reset_sliders)
             self._desired_joint_positions = initialize_joint_position_sliders(self.joint_names, lower_limits=self.joint_lower_limits, upper_limits=self.joint_upper_limits)
 
-        with dpg.window(label="Joint Settings", tag="joint_settings", pos=[viewer_width - self._window_width, self._joint_control_height], width=self._window_width, height=500):
+        with dpg.window(label="Joint Settings", tag="joint_settings"):
             with dpg.group(horizontal=True):
                 self._update_settings_button = Button("Update Settings")
                 self._update_settings_continuously = CheckBox("Update Settings Continuously")
@@ -127,13 +128,20 @@ class JointControlGUI:
             dpg.set_value(name + "_max_velocity_error", joint_setting.max_velocity_error)
 
     def update_window_positions(self, window_width: int):
-        dpg.set_item_pos("joint_control", [window_width - self._window_width, 0])
-        dpg.set_item_pos("joint_settings", [window_width - self._window_width, self._joint_control_height])
+        dpg.set_item_pos("joint_control", [window_width - self.control_dimensions[0], 0])
+        dpg.set_item_pos("joint_settings", [window_width - self.settings_dimensions[0], self.control_dimensions[1]])
 
     def _update_internal(self):
         if self._update_settings_button.value or self._update_settings_continuously.value:
             self._update_settings()
             self._update_settings_button.set(False)
+
+    def set_spacing(self):
+        self.control_dimensions = dpg.get_item_rect_size("joint_control")
+        self.settings_dimensions = dpg.get_item_rect_size("joint_settings")
+        width = dpg.get_viewport_client_width()
+        dpg.set_item_pos("joint_control", [width - self.control_dimensions[0], 0])
+        dpg.set_item_pos("joint_settings", [width - self.settings_dimensions[0], self.control_dimensions[1]])
 
 
     def update_desireds(self, commands: List[OneDOFJointCommand]):

@@ -16,7 +16,7 @@ class HardwareStatusGUI:
         self._power_supply_power = [0.0] * plot_length
         self._motor_bus_power = [0.0] * plot_length
 
-        with dpg.window(label="Hardware Status", pos = [400, 0], width = 400, height=700):
+        with dpg.window(label="Hardware Status", tag="hardware_status"):
             dpg.add_text("Hardware Status:")
             with dpg.group(horizontal=True):
                 self._robot_fault = CheckBox("Robot Fault", False)
@@ -36,23 +36,32 @@ class HardwareStatusGUI:
             self._working_counter_fault = CheckBox("Working Counter", False)
 
             dpg.add_text("Power Status:")
-            with dpg.plot(label="Voltage", tag="voltage_plot", width=350, height=200):
-                dpg.add_plot_legend()
-                dpg.add_plot_axis(dpg.mvXAxis, tag="voltage_time", no_label=True, no_tick_labels=True)
-                dpg.add_plot_axis(dpg.mvYAxis, tag="voltage", label="Voltage (V)")
-                dpg.set_axis_limits("voltage", ymax=50.0, ymin=0.0)
-                dpg.add_line_series([], [], parent="voltage", label = "Power Supply", tag="power_supply_voltage")
-                dpg.add_line_series([], [], parent="voltage", label = "Motor Bus", tag="motor_bus_voltage")
-            with dpg.plot(label="Current", tag="current_plot", width=350, height=200):
-                dpg.add_plot_axis(dpg.mvXAxis, tag="current_time", no_label=True, no_tick_labels=True)
-                dpg.add_plot_axis(dpg.mvYAxis, tag="current", label="Current (A)")
-                dpg.add_line_series([], [], parent="current", tag="power_supply_current")
-                dpg.add_line_series([], [], parent="current", tag="motor_bus_current")
+            with dpg.group(horizontal=True):
+                with dpg.plot(label="Voltage", tag="voltage_plot", width=350, height=200):
+                    dpg.add_plot_legend()
+                    dpg.add_plot_axis(dpg.mvXAxis, tag="voltage_time", no_label=True, no_tick_labels=True)
+                    dpg.add_plot_axis(dpg.mvYAxis, tag="voltage", label="Voltage (V)")
+                    dpg.set_axis_limits("voltage", ymax=50.0, ymin=0.0)
+                    dpg.add_line_series([], [], parent="voltage", label = "Power Supply", tag="power_supply_voltage")
+                    dpg.add_line_series([], [], parent="voltage", label = "Motor Bus", tag="motor_bus_voltage")
+                with dpg.plot(label="Current", tag="current_plot", width=350, height=200):
+                    dpg.add_plot_axis(dpg.mvXAxis, tag="current_time", no_label=True, no_tick_labels=True)
+                    dpg.add_plot_axis(dpg.mvYAxis, tag="current", label="Current (A)")
+                    dpg.set_axis_limits("current", ymax=10.0, ymin=-10.0)
+                    dpg.add_line_series([], [], parent="current", tag="power_supply_current")
+                    dpg.add_line_series([], [], parent="current", tag="motor_bus_current")
             # with dpg.plot(label="Power", tag="power_plot", width=400, height=200):
             #     dpg.add_plot_axis(dpg.mvXAxis, tag="power_time", label="Time (s)", no_tick_labels=True)
             #     dpg.add_plot_axis(dpg.mvYAxis, tag="power", label="Power (W)")
             #     dpg.add_line_series([], [], parent="power", tag="power_supply_power")
             #     dpg.add_line_series([], [], parent="power", tag="motor_bus_power")
+    
+    def set_spacing(self, x_pos: int=0, y_pos: int=0, right_aligned=True):
+        dim = dpg.get_item_rect_size("hardware_status")
+        if right_aligned:
+            dpg.set_item_pos("hardware_status", [x_pos - dim[0], y_pos])
+        else:
+            dpg.set_item_pos("hardware_status", [x_pos, y_pos])
 
     def update(self, status: HardwareStatus, robot_time: float):
 

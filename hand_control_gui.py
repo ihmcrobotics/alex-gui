@@ -19,7 +19,7 @@ hand_operation_modes = {POSITION_CONTROL: 0,
 class HandControlGUI:
     def __init__(self):
 
-        with dpg.window(label="Hand Control", tag="hand_control_gui", pos=[0, 520], width=400, height=380):
+        with dpg.window(label="Hand Control", tag="hand_control_gui"):
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Calibrate Hands", callback=self._calibrate_hands)
                 dpg.add_button(label="Reset Errors", callback=self._reset_errors)
@@ -100,6 +100,15 @@ class HandControlGUI:
         hand_commands = {hand_names[0]: data["left_hand_command"], hand_names[1]: data["right_hand_command"]}
         self.read_hand_states(hand_states)
         self.write_hand_commands(hand_commands)
+    
+    def set_spacing(self, x_pos: int=0, y_pos: int=0, right_aligned=True):
+        dim = dpg.get_item_rect_size("hand_control_gui")
+        print(dim)
+        print(x_pos - dim[0])
+        if right_aligned:
+            dpg.set_item_pos("hand_control_gui", [x_pos - dim[0], y_pos])
+        else:
+            dpg.set_item_pos("hand_control_gui", [x_pos, y_pos])
 
     def _calibrate_hands(self):
         for hand_name in hand_names:
