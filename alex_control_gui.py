@@ -1,6 +1,7 @@
 from threading import Lock
 from typing import Union
 
+from hand_control_gui import *
 from hardware_status import *
 from joint_control_gui import *
 from messages import OneDOFJointCommand, AlexCommand, AlexState
@@ -14,7 +15,7 @@ robot_control_state = {DO_NOTHING: 0,
                        USER_CONTROL: 2}
 
 class AlexControlGUI:
-    def __init__(self, robot: RobotModel, frequency: float= 100.0, width: int=1400, height: int=1000, monitor_scale: float = 1.0):
+    def __init__(self, robot_model: RobotModel, frequency: float= 100.0, width: int=1400, height: int=1000, monitor_scale: float = 1.0):
         dpg.create_context()
         dpg.configure_app(docking=True, docking_space=True)
         self.frequency = frequency
@@ -26,7 +27,7 @@ class AlexControlGUI:
 
         self._initialize_startup_shutdown_buttons()
         self._initialize_state_buttons()
-        self._arm_control = JointControlGUI(robot, monitor_scale)
+        self._arm_control = JointControlGUI(robot_model, monitor_scale)
         self._hand_control = HandControlGUI(monitor_scale)
         self._initialize_pose_buttons()
         self._hardware_status = HardwareStatusGUI()
@@ -42,8 +43,8 @@ class AlexControlGUI:
         self._state_dimensions = [0,0]
         self._pose_dimensions = [0,0]
 
-        joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_list]
-        self.alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(robot.joint_names))
+        joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot_model.joint_list]
+        self.alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(robot_model.joint_names))
 
         dpg.create_viewport(title='Control GUI', width=self._viewer_width, height=self._viewer_height, vsync=False, x_pos=0, y_pos=0)
         dpg.setup_dearpygui()
@@ -55,6 +56,7 @@ class AlexControlGUI:
 
         self._request_auto_startup = False
         self._request_auto_shutdown = False
+        self._shutdown_process_started = False
         self._request_safe_startup = False
         self._request_safe_shutdown = False
         self._calibrate = False
@@ -69,14 +71,14 @@ class AlexControlGUI:
         self._safe_power_up_down_tag = "request_safe"
 
         with dpg.window(label="Auto Startup", tag="auto_startup_shutdown", pos=[0, 0]):
-            dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, callback=self._run_auto_startup_shutdown)
-            dpg.add_button(label="Emergency Stop", tag="estop", callback=self._emergency_stop, height=50)
-            with dpg.theme() as theme:
+            dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, height=30, callback=self._run_auto_startup_shutdown)
+            dpg.add_button(label="Emergency Stop", tag="estop", callback=self._emergency_stop, height=30)
+            with dpg.theme() as estop_theme:
                 with dpg.theme_component(dpg.mvButton):
-                    dpg.add_theme_color(dpg.mvThemeCol_Button, (255, 0, 0, 150))
+                    dpg.add_theme_color(dpg.mvThemeCol_Button, (255, 0, 0, 200))
                     dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (255, 0, 0, 255))
 
-            dpg.bind_item_theme("estop", theme)
+            dpg.bind_item_theme("estop", estop_theme)
         
         with dpg.window(label="Manual Startup", tag="manual_startup_shutdown"):
             dpg.add_button(label="Request Safe Power Up", tag=self._safe_power_up_down_tag, callback=self._run_safe_power_up_down)
@@ -319,7 +321,11 @@ class AlexControlGUI:
                 print("Requesting Auto Startup")
             elif self._auto_startup_complete.value:
                 dpg.configure_item(self._auto_startup_shutdown_tag, label="Shutting Down", enabled=False)
-                self._request_auto_shutdown = True
+                if self._servo_robot:
+                    self._start_servo_unservo()
+                    self._shutdown_process_started = True
+                else:
+                    self._request_auto_shutdown = True
                 self._auto_startup_complete.set(False)
                 print("Shutting down")
             elif self._auto_shutdown_complete.value:
@@ -337,7 +343,10 @@ class AlexControlGUI:
         self._begin_time = time.perf_counter_ns()
 
     def _update_auto_startup_shutdown(self):
-        if self._request_auto_startup and self._auto_startup_complete.value:
+        if self._shutdown_process_started and self._current_ll_master_gain == 0:
+            self._enable_actuators.set(False)
+            self._request_auto_shutdown = True
+        elif self._request_auto_startup and self._auto_startup_complete.value:
             dpg.configure_item(self._auto_startup_shutdown_tag, label="Request Auto Shutdown", enabled=True)
             self._request_auto_startup = False
             self._enable_actuators.set(True)
