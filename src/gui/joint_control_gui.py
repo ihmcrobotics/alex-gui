@@ -1,12 +1,10 @@
 import math
 import time
-from typing import List
 
 from skrobot.model import RobotModel
 
-from dearpygui_helpers import *
-from joint_settings import JointSettings
-from messages import OneDOFJointState, OneDOFJointCommand
+from .gui_helpers import *
+from communication.messages import OneDOFJointState, OneDOFJointCommand
 
 
 def initialize_joint_position_sliders(joint_names: List[str],
@@ -174,7 +172,7 @@ class JointControlGUI:
 if __name__ == "__main__":
     dpg.create_context()
     dpg.configure_app(docking=True, docking_space=True)
-    path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe.urdf"
+    path = "../../../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe.urdf"
     this_robot = RobotModel.from_urdf(path)
     print('a')
     arm_control = JointControlGUI(this_robot)

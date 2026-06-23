@@ -10,7 +10,7 @@ from cyclonedds.qos import Qos, Policy
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.topic import Topic
 
-from messages import *
+from .messages import *
 
 
 class AlexCommunication:

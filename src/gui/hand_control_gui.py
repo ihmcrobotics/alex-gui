@@ -1,5 +1,5 @@
-from dearpygui_helpers import *
-from messages import EZGripperCommand, EZGripperState
+from .gui_helpers import *
+from communication.messages import EZGripperCommand, EZGripperState
 
 hand_names = ["left_hand", "right_hand"]
 desired_operation_suffix = "_desired_op_mode"

@@ -11,11 +11,11 @@ PURDUE_FULL_PARTS = ["leftUpperArm", "leftForearm", "leftEZGripperAdapter", "lef
 ALEX_FULLBODY_PARTS = ["head", "leftUpperArm", "leftForearm", "leftAbilityHandAdapter", "ability_hand_left_large", "rightUpperArm", "rightForearm", "rightAbilityHandAdapter", "ability_hand_right_large"]
 ALEX_NOARMS_PARTS = ["head"]
 if sys.platform == "win32":
-    ALEX_URDF_PATH = '..\\ihmc-alex-sdk\\alex-models\\alex_purdue_description\\urdf\\'
-    HANDS_PATH = "..\\ihmc-alex-sdk\\alex-ros2\\ihmc_hands_ros2\\"
+    ALEX_URDF_PATH = '..\\..\\ihmc-alex-sdk\\alex-models\\alex_purdue_description\\urdf\\'
+    HANDS_PATH = "..\\..\\ihmc-alex-sdk\\alex-ros2\\ihmc_hands_ros2\\"
 else:
-    ALEX_URDF_PATH = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/"
-    HANDS_PATH = "../ihmc-alex-sdk/alex-ros2/ihmc_hands_ros2/"
+    ALEX_URDF_PATH = "../../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/"
+    HANDS_PATH = "../../ihmc-alex-sdk/alex-ros2/ihmc_hands_ros2/"
 
 def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[str] = [""],
                 allowed_collisions: List[str] | None = [""], output_name: str = "temp"):

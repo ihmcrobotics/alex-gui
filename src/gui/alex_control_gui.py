@@ -1,11 +1,11 @@
 from threading import Lock
 from typing import Union
 
-from hand_control_gui import *
-from hardware_status import *
-from joint_control_gui import *
-from messages import OneDOFJointCommand, AlexCommand, AlexState
-from poses import *
+from .hand_control_gui import *
+from .hardware_status import *
+from .joint_control_gui import *
+from communication.messages import OneDOFJointCommand, AlexCommand, AlexState
+from .gui_helpers import *
 
 DO_NOTHING = "Do Nothing"
 HOLD_POSITION = "Hold Position"
@@ -408,7 +408,7 @@ class AlexControlGUI:
 if __name__ == "__main__":
     dpg.create_context()
     dpg.configure_app(docking=True, docking_space=True)
-    path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe.urdf"
+    path = "../../../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe.urdf"
     robot = RobotModel.from_urdf(path)
     print('a')
     gui = AlexControlGUI(robot)

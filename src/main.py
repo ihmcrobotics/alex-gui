@@ -2,12 +2,13 @@ import threading
 from threading import Lock
 import dearpygui.dearpygui as dpg
 
-from alex_communication import AlexCommunication
-from alex_control_gui import AlexControlGUI
-from alex_robot_visualizer import AlexVisualizer
-from messages import *
+from communication import AlexCommunication
+from communication.messages import *
+from gui import AlexControlGUI
+from visualizer import AlexVisualizer
+
 import logging
-from urdf_helper import merge_urdfs, PURDUE_FULL_PARTS, PURDUE_CYCLOIDFOREARMS_PARTS
+from visualizer.urdf_helper import merge_urdfs, PURDUE_FULL_PARTS
 from screeninfo import get_monitors
 
 def main(urdf_path: str):
@@ -25,7 +26,7 @@ def main(urdf_path: str):
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot, frequency=control_frequency, monitor_scale=monitor_scale, height=int(0.9*height), width=int(3*width/4)) #, width=int(width/2), height=height)
-    communication = AlexCommunication("10.43.3.3", frequency=comm_frequency) #"10.100.4.183")
+    communication = AlexCommunication("127.0.0.1", frequency=comm_frequency) #"10.43.3.3"
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
