@@ -1,3 +1,20 @@
+"""
+This file contains the dataclasses for each ROS message needed to communicate with Alex.
+These messages include:
+- Alex State
+    - IMU State
+    - Force Torque State
+    - One DOF Joint State
+- Alex Command
+    - One DOF Joint Command
+- Hardware Status
+    - ROS Device Status Provider
+- EZGripper State
+- EZGripper Command
+Go to ihmc-alex-sdk/alex-ros2 to find the messages and respective idl files
+"""
+
+
 from dataclasses import dataclass, field
 
 from cyclonedds.idl import IdlStruct
@@ -83,14 +100,6 @@ class AlexCommand(IdlStruct, typename="alex_msgs::msg::dds_::AlexCommand_"):
     joint_commands: sequence[OneDOFJointCommand, 50] = field(default_factory=list)
     number_of_joints: uint32 = 0.0
 
-# @dataclass
-# class HardwareResources(IdlStruct):
-#     num_xml_resources: uint32 = 0
-#     num_urdf_resources: uint32 = 0
-#     xml_resources: sequence[str, 11] = field(default_factory=list)
-#     urdf_resources: sequence[str, 10] = field(default_factory=list)
-#     directory: str = ""
-
 @dataclass
 class ROSDeviceStatusProvider(IdlStruct, typename="alex_msgs::msg::dds_::ROSDeviceStatusProvider_"):
     # The device name
@@ -167,13 +176,5 @@ class EZGripperCommand(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGrippe
     goal_position: float32 = 0.0
     max_effort: float32 = 0.3
     torque_on: bool = False
-
-@dataclass
-class HandJointAnglePacket(IdlStruct, typename="controller_msgs::msg::dds_::HandJointAnglePacket_"):
-    sequence_id: uint64 = 0
-    robot_side: uint8 = 0
-    joint_angles: sequence[float64] = field(default_factory=list)
-    connected: bool = False
-    calibrated: bool = False
 
 

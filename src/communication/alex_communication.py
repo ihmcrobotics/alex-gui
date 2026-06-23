@@ -14,17 +14,29 @@ from .messages import *
 
 
 class AlexCommunication:
+    """
+    This class sets up communication for Alex using DDS.
+    """
     def __init__(self, ip_address: str = "127.0.0.1", domain_id: int = 42,  frequency: float = 100.0):
+        """
+        Initialize AlexCommunication class
+
+        :param ip_address: IP address to use for DDS communication
+        :param domain_id: RTPS domain ID for communication
+        :param frequency: Communication frequency in Hz
+        """
+        # Set up the communication environment to specifically select the correct IP address
         os.environ["CYCLONEDDS_URI"] = "<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" + ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>"
         self.alex_state = None
-
         self._missed_loops = 0
         self._avg_time = 0.0
         self._num_loops = 0
 
-
+        # Set the loop dt
         self.frequency = frequency
         self.dt = 1.0/frequency
+
+        # Initialize the DDS communication and topics
         qos = Qos(Policy.Reliability.Reliable(max_blocking_time=1000))
         qos.reliability = Policy.Reliability.Reliable
         domain_participant = DomainParticipant(domain_id, qos)
@@ -35,6 +47,8 @@ class AlexCommunication:
         left_hand_state_topic = Topic(domain_participant, "rt/ezgripper/left/state", EZGripperState)
         right_hand_state_topic = Topic(domain_participant, "rt/ezgripper/right/state", EZGripperState)
         alex_status_topic = Topic(domain_participant, "rt/hardware_status", HardwareStatus)
+
+        # Set up listeners and subscribers
         self.state_listener = AlexStateListener()
         self.left_hand_state_listener = HandStateListener()
         self.right_hand_state_listener = HandStateListener()
@@ -47,18 +61,27 @@ class AlexCommunication:
                                                    listener=self.right_hand_state_listener)
         self.hardware_status_reader = DataReader(subscriber, alex_status_topic, listener=self.status_listener)
 
+        # Set up the publishers
         publisher = Publisher(domain_participant)
         self._alex_command_writer = DataWriter(publisher, alex_command_topic, qos)
         self._left_hand_command_writer = DataWriter(publisher, left_hand_command_topic, qos)
         self._right_hand_command_writer = DataWriter(publisher, right_hand_command_topic, qos)
 
     def run_communication(self, lock: Union[threading.Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
+        """
+        Run the DDS communication loop continuously until the program ends
+        :param lock: Threading lock to read and write data to shared memory
+        :param shared_data: Dictionary of shared memory data
+        """
         try:
+            # Run the communication loop until the program is killed
             while True:
                 self._num_loops += 1
                 curr_time = time.perf_counter_ns()
+                # If the threading lock and shared data are provided, read from and write to the shared data
                 if lock is not None and shared_data is not None:
                     with lock:
+                        # Check and make sure there is data to read from the subscribers
                         if self.state_listener.alex_state is not None:
                             shared_data["alex_state"] = self.state_listener.alex_state
                         if self.status_listener.hardware_status is not None:
@@ -68,24 +91,22 @@ class AlexCommunication:
                         if self.right_hand_state_listener.hand_state is not None:
                             shared_data["right_hand_state"] = self.right_hand_state_listener.hand_state
 
+                        # Publish commands to the robot and hands
                         self._alex_command_writer.write(shared_data["alex_command"])
                         self._left_hand_command_writer.write(shared_data["left_hand_command"])
                         self._right_hand_command_writer.write(shared_data["right_hand_command"])
 
-                # if alex_command is not None:
-                #     self._alex_command_writer.write(alex_command)
-                # if left_hand_command is not None:
-                #     self._left_hand_command_writer.write(left_hand_command)
-                # if right_hand_command is not None:
-                #     self._right_hand_command_writer.write(right_hand_command)
+                # Gather statistics. Uncomment if you want to use them
+                # self._avg_time += (time.perf_counter_ns() - curr_time) * 1.0e-9
+                # if self._num_loops > 10 * self.frequency:
+                #     print(self._avg_time / self._num_loops)
+                #     print(100.0 * self._missed_loops / self._num_loops)
+                #     self._num_loops = 0
+                #     self._missed_loops = 0
+                #     self._avg_time = 0.0
+
+                # To set loop frequency deterministically, get the elapsed time and have the loop sleep until the end
                 elapsed_time = (time.perf_counter_ns() - curr_time) * 1.0e-9
-                self._avg_time += elapsed_time
-                if self._num_loops > 10 * self.frequency:
-                    print(self._avg_time / self._num_loops)
-                    print(100.0 * self._missed_loops / self._num_loops)
-                    self._num_loops = 0
-                    self._missed_loops = 0
-                    self._avg_time = 0.0
                 if elapsed_time < self.dt:
                     time.sleep(self.dt - elapsed_time)
                 else:
@@ -97,90 +118,44 @@ class AlexCommunication:
 
 
 class AlexStateListener(Listener):
+    """
+    Listener that reads data from the AlexState topic
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        # self.alex_state = alex_state
         self.alex_state = None
 
     def on_data_available(self, reader: DataReader[AlexState]) -> None:
         self.alex_state = reader.read_next()
 
 class HardwareStatusListener(Listener):
+    """
+    Listener that reads data from the hardware status topic
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        # self.alex_state = alex_state
         self.hardware_status = None
 
     def on_data_available(self, reader: DataReader[HardwareStatus]) -> None:
         self.hardware_status = reader.read_next()
 
 class HandStateListener(Listener):
+    """
+    Listener that reads data from the hand state topic
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
         self.hand_state = None
 
     def on_data_available(self, reader: DataReader[EZGripperState]) -> None:
         self.hand_state = reader.read_next()
 
-
-def get_rtps_domain_id(config_path=os.path.expanduser("~/.ihmc/IHMCNetworkParameters.ini")):
-    domain_id = 0  # default fallback
-    if os.path.exists(config_path):
-        with open(config_path, "r") as f:
-            for line in f:
-                if line.strip().startswith("RTPSDomainID"):
-                    try:
-                        domain_id = int(line.split("=")[1].strip())
-                    except ValueError:
-                        domain_id = 0
-                    break
-    return domain_id
-
-def main(argv=None):
+def main():
+    """
+    Main function to test out communication
+    """
     alex_communication = AlexCommunication()
     alex_communication.run_communication()
-
-    # If you want to test out the manual communication, use this code
-    # os.environ["CYCLONEDDS_URI"] = "<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"10.43.3.6\"/></Interfaces></General></Domain></CycloneDDS>"
-    # print(os.environ.get("CYCLONEDDS_URI"))
-    # # print(os.environ.get("ROS_DOMAIN_ID"))
-    # qos = Qos(Policy.Reliability.Reliable(max_blocking_time=1))
-    # qos.reliability = Policy.Reliability.Reliable
-    # # best_effort_qos = Qos(Policy.)
-    # domain_participant = DomainParticipant(get_rtps_domain_id())
-    # alex_status_topic = Topic(domain_participant, "rt/ihmc/alex/humanoid_control/output/hand_joint_angle", HandJointAnglePacket)
-    # # alex_state_topic = Topic(domain_participant, "rt/alex_state", AlexState)
-    # # state_listener = AlexStateListener()
-    # subscriber = Subscriber(domain_participant)
-    # alex_state_reader = DataReader(subscriber, alex_status_topic) #, listener=state_listener)
-    #
-    #
-    #
-    # try:
-    #     while True:
-    #         # Read arriving samples (non-blocking, returns a list)
-    #         print("reader guid:", alex_state_reader.guid)
-    #         print("matched:", alex_state_reader.get_matched_publications())
-    #
-    #         samples = alex_state_reader.read()
-    #
-    #         print("read returned", len(samples), "samples")
-    #         print(samples)
-    #
-    #         for sample in samples:
-    #             print("sample:", sample)
-    #             # print("time: ", sample.time)
-    #         #     print("joint_states: ", sample.joint_states)
-    #         #     print(f"Received ID: {sample.id} | Message: {sample.message}")
-    #
-    #         # Prevent high CPU utilization in the loop
-    #         time.sleep(0.5)
-    #
-    # except KeyboardInterrupt:
-    #     print("\nStopping subscription.")
 
 if __name__ == "__main__":
     main()
