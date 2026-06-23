@@ -80,7 +80,7 @@ class JointControlGUI:
         with dpg.window(label="Joint Control", tag="joint_control"):
             with dpg.group(horizontal=True):
                 self._send_desireds = Button("Send Desireds")
-                self._send_desireds_continuously = CheckBox("Send Desireds Continuously")
+                self._send_desireds_continuously = CheckBox("Send Desireds Continuously", initial_value=True)
             dpg.add_button(label="Reset sliders", callback=self.reset_sliders)
             self._desired_joint_positions = initialize_joint_position_sliders(self.joint_names, lower_limits=self.joint_lower_limits, upper_limits=self.joint_upper_limits)
 
@@ -88,7 +88,7 @@ class JointControlGUI:
             with dpg.group(horizontal=True):
                 self._update_settings_button = Button("Update Settings")
                 self._update_settings_continuously = CheckBox("Update Settings Continuously")
-            self._use_custom_impedance = CheckBox("Use Custom Impedance")
+            self._use_custom_impedance = CheckBox("Use Custom Impedance", initial_value=True)
             initialize_joint_parameter_tabs(self.joint_settings, monitor_scale=monitor_scale)
 
     def reset_sliders(self):
