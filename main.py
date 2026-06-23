@@ -12,13 +12,10 @@ from screeninfo import get_monitors
 
 def main(urdf_path: str):
     monitor = get_monitors()[0]
-    print(monitor)
-    print(monitor.width)
-    monitor_scale=1.0
-    # if monitor.width < 2000:
-    #     monitor_scale = 1.0
-    # else: 
-    #     monitor_scale = 1.5
+    if monitor.width < 2000:
+        monitor_scale = 1.0
+    else: 
+        monitor_scale = 2.0
     height, width = monitor.height, monitor.width
     
     thread_lock = Lock()
@@ -28,7 +25,7 @@ def main(urdf_path: str):
     robot_visualizer = AlexVisualizer(urdf_path, frequency = vis_frequency)
     robot = robot_visualizer.get_robot_model()
     control_gui = AlexControlGUI(robot, frequency=control_frequency, monitor_scale=monitor_scale, height=int(0.9*height), width=int(3*width/4)) #, width=int(width/2), height=height)
-    communication = AlexCommunication("127.0.0.1", frequency=comm_frequency) #"10.100.4.183")
+    communication = AlexCommunication("10.43.3.3", frequency=comm_frequency) #"10.100.4.183")
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 

@@ -66,13 +66,12 @@ class AlexControlGUI:
         self._use_requested_master_gain = True
         self._servo_timer = 0.0
         self._servo_initial_value = 0.0
-        self._robot_control_state = DO_NOTHING
         self._auto_startup_shutdown_tag = "request_auto"
         self._safe_power_up_down_tag = "request_safe"
 
         with dpg.window(label="Auto Startup", tag="auto_startup_shutdown", pos=[0, 0]):
-            dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, height=30, callback=self._run_auto_startup_shutdown)
-            dpg.add_button(label="Emergency Stop", tag="estop", callback=self._emergency_stop, height=30)
+            dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, height=30*self._monitor_scale, callback=self._run_auto_startup_shutdown)
+            dpg.add_button(label="Emergency Stop", tag="estop", callback=self._emergency_stop, height=30*self._monitor_scale)
             with dpg.theme() as estop_theme:
                 with dpg.theme_component(dpg.mvButton):
                     dpg.add_theme_color(dpg.mvThemeCol_Button, (255, 0, 0, 200))
@@ -90,7 +89,7 @@ class AlexControlGUI:
                 self._requested_master_gain = FloatSlider("Requested Master Gain", use_name_as_label=False, width=150)
             with dpg.group(horizontal=True):
                 dpg.add_text("Control State: ")
-                dpg.add_combo(items=[DO_NOTHING, USER_CONTROL], tag="control_state", width=100, default_value=DO_NOTHING)
+                dpg.add_combo(items=[DO_NOTHING, USER_CONTROL], tag="control_state", width=100*self._monitor_scale, default_value=DO_NOTHING)
 
     def _emergency_stop(self):
         self._unservo_quickly = True
@@ -275,7 +274,7 @@ class AlexControlGUI:
         alex_command.request_disable_actuators = not self._enable_actuators.value
         alex_command.requested_master_gain = self._requested_master_gain.value
         alex_command.use_requested_master_gain = True
-        alex_command.robot_control_state = robot_control_state[self._robot_control_state]
+        alex_command.robot_control_state = robot_control_state[dpg.get_value('control_state')]
 
         self._arm_control.update_desireds(alex_command.joint_commands)
 
@@ -310,6 +309,8 @@ class AlexControlGUI:
             else:
                 dpg.configure_item("servo_robot", label="Servo Robot", enabled=True)
                 self._requested_master_gain.set(0.0)
+                if self._shutdown_process_started:
+                    self._request_auto_shutdown = True
                 print("Robot is unservoed")
 
     def _run_auto_startup_shutdown(self):
@@ -326,7 +327,7 @@ class AlexControlGUI:
                     self._shutdown_process_started = True
                 else:
                     self._request_auto_shutdown = True
-                self._auto_startup_complete.set(False)
+                # self._auto_startup_complete.set(False)
                 print("Shutting down")
             elif self._auto_shutdown_complete.value:
                 dpg.configure_item(self._auto_startup_shutdown_tag, label="Starting up, press to stop", enabled=True)
@@ -351,13 +352,13 @@ class AlexControlGUI:
             self._request_auto_startup = False
             self._enable_actuators.set(True)
             self._start_servo_unservo()
-            self._robot_control_state = USER_CONTROL
+            dpg.set_value('control_state', USER_CONTROL)
             print("auto startup complete")
         elif self._request_auto_shutdown and self._auto_shutdown_complete.value:
             dpg.configure_item(self._auto_startup_shutdown_tag, label="Request Auto Startup", enabled=True)
             self._request_auto_shutdown = False
             self._enable_actuators.set(False)
-            self._robot_control_state = DO_NOTHING
+            dpg.set_value('control_state', DO_NOTHING)
             print("auto shutdown complete")
 
     def _run_safe_power_up_down(self):
