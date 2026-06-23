@@ -1,0 +1,8 @@
+#ignore all pycaches
+*__pycache__/
+
+#ignore builds
+build/
+
+#ignore gui info
+src/alex_gui.egg-info
