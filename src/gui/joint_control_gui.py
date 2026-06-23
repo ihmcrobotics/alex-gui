@@ -3,8 +3,8 @@ import time
 
 from skrobot.model import RobotModel
 
-from .gui_helpers import *
 from communication.messages import OneDOFJointState, OneDOFJointCommand
+from .gui_helpers import *
 
 
 def initialize_joint_position_sliders(joint_names: List[str],

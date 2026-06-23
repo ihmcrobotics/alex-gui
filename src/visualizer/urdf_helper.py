@@ -1,7 +1,8 @@
+import sys
+from pathlib import Path
 from typing import List
 
 from lxml import etree
-import sys
 
 ALEX_NUBFOREARMS_PARTS = ["head", "leftUpperArm", "leftFixedForearm", "rightUpperArm", "rightFixedForearm"]
 ALEX_CYCLOIDFOREARMS_PARTS = ["head", "leftUpperArm", "leftForearm", "rightUpperArm", "rightForearm"]
@@ -10,20 +11,20 @@ PURDUE_FULL_PARTS = ["leftUpperArm", "leftForearm", "leftEZGripperAdapter", "lef
 
 ALEX_FULLBODY_PARTS = ["head", "leftUpperArm", "leftForearm", "leftAbilityHandAdapter", "ability_hand_left_large", "rightUpperArm", "rightForearm", "rightAbilityHandAdapter", "ability_hand_right_large"]
 ALEX_NOARMS_PARTS = ["head"]
+SCRIPT_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
 if sys.platform == "win32":
-    ALEX_URDF_PATH = '..\\..\\ihmc-alex-sdk\\alex-models\\alex_purdue_description\\urdf\\'
-    HANDS_PATH = "..\\..\\ihmc-alex-sdk\\alex-ros2\\ihmc_hands_ros2\\"
+    ALEX_URDF_PATH = SCRIPT_DIR + "\\ihmc-alex-sdk\\alex-models\\alex_purdue_description\\urdf\\"
+    HANDS_PATH = SCRIPT_DIR + "\\ihmc-alex-sdk\\alex-ros2\\ihmc_hands_ros2\\"
 else:
-    ALEX_URDF_PATH = "../../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/"
-    HANDS_PATH = "../../ihmc-alex-sdk/alex-ros2/ihmc_hands_ros2/"
+    ALEX_URDF_PATH = SCRIPT_DIR + "/ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/"
+    HANDS_PATH = SCRIPT_DIR + "/ihmc-alex-sdk/alex-ros2/ihmc_hands_ros2/"
 
 def merge_urdfs(robot_version: str, wanted_parts: List[str], fixed_joints: List[str] = [""],
                 allowed_collisions: List[str] | None = [""], output_name: str = "temp"):
     prefix = "alex_"
-
     excluded_name = "IMU"
 
-    main_directory = ALEX_URDF_PATH #+ robot_version + '/'
+    main_directory = ALEX_URDF_PATH
     if sys.platform == "win32":
         hand_mesh_directory = HANDS_PATH + "meshes\\"
     else:

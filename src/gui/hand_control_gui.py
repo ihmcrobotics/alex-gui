@@ -1,5 +1,5 @@
-from .gui_helpers import *
 from communication.messages import EZGripperCommand, EZGripperState
+from .gui_helpers import *
 
 hand_names = ["left_hand", "right_hand"]
 desired_operation_suffix = "_desired_op_mode"
@@ -33,7 +33,7 @@ class HandControlGUI:
                 for hand_name in hand_names:
                     dpg.add_table_column(label=hand_name)
                 with dpg.table_row():
-                    dpg.add_text("Operation Mode")
+                    dpg.add_text("Des Op Mode")
                     # self._desired_operation_mode = {hand_name: ComboBox(hand_name, hand_operation_modes, suffix="_desired_op_mode") for hand_name in hand_names}
                     for hand_name in hand_names:
                         dpg.add_combo(items=list(hand_operation_modes), default_value="Position Control", tag=hand_name+desired_operation_suffix, width=int(140*monitor_scale))
@@ -55,7 +55,7 @@ class HandControlGUI:
                     dpg.add_text("Curr Position")
                     self._measured_hand_positions = {hand_name: ValueDisplay(hand_name, suffix="_position") for hand_name in hand_names}
                 with dpg.table_row():
-                    dpg.add_text("Operation Mode")
+                    dpg.add_text("Curr Op Mode")
                     self._current_hand_operation = {hand_name: ValueDisplay(hand_name, suffix="_op_mode") for hand_name in hand_names}
                 with dpg.table_row():
                     dpg.add_text("Temperature")

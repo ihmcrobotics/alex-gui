@@ -1,5 +1,5 @@
-from .gui_helpers.dearpygui_helpers import *
 from communication.messages import HardwareStatus
+from .gui_helpers.dearpygui_helpers import *
 
 
 class HardwareStatusGUI:

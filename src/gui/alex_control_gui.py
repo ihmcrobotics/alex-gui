@@ -1,11 +1,10 @@
 from threading import Lock
 from typing import Union
 
+from communication.messages import AlexCommand, AlexState
 from .hand_control_gui import *
 from .hardware_status import *
 from .joint_control_gui import *
-from communication.messages import OneDOFJointCommand, AlexCommand, AlexState
-from .gui_helpers import *
 
 DO_NOTHING = "Do Nothing"
 HOLD_POSITION = "Hold Position"
