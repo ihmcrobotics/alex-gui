@@ -16,11 +16,15 @@ class HandControlGUI:
     def __init__(self, monitor_scale: float=1.0):
 
         with dpg.window(label="Hand Control", tag="hand_control_gui"):
+            dpg.add_text("Hand Initialization: ")
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Calibrate Hands", callback=self.calibrate_hands)
                 dpg.add_button(label="Reset Errors", callback=self.reset_errors)
-                dpg.add_button(label="Operate Hands", callback=self.operate_hands)
+            dpg.add_text("Hand Operation")
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Enable Hands", callback=self.enable_hands)
                 dpg.add_button(label="Disable Hands", callback=self.disable_hands)
+            dpg.add_text("Hand Positions:")
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Close Hands", callback=self._close_hands)
                 dpg.add_button(label="Open Hands", callback=self._open_hands)
@@ -34,7 +38,7 @@ class HandControlGUI:
                     for hand_name in hand_names:
                         dpg.add_combo(items=list(hand_operation_modes), default_value="Position Control", tag=hand_name+desired_operation_suffix, width=int(140*monitor_scale))
                 with dpg.table_row():
-                    dpg.add_text("Position")
+                    dpg.add_text("Des Position")
                     self._hand_desired_positions = {hand_name: FloatSlider(hand_name, suffix="_des_position", width=int(140 * monitor_scale), use_name_as_label=False) for hand_name in hand_names}
                 with dpg.table_row():
                     dpg.add_text("Max Effort")
@@ -48,7 +52,7 @@ class HandControlGUI:
                 for hand_name in hand_names:
                     dpg.add_table_column(label=hand_name)
                 with dpg.table_row():
-                    dpg.add_text("Position")
+                    dpg.add_text("Curr Position")
                     self._measured_hand_positions = {hand_name: ValueDisplay(hand_name, suffix="_position") for hand_name in hand_names}
                 with dpg.table_row():
                     dpg.add_text("Operation Mode")
@@ -59,7 +63,7 @@ class HandControlGUI:
                                             for
                                             hand_name in hand_names}
                 with dpg.table_row():
-                    dpg.add_text("Effort")
+                    dpg.add_text("Curr Effort")
                     self._current_effort = {hand_name: ValueDisplay(hand_name, suffix="_effort", initial_value=0) for
                                                     hand_name in hand_names}
                 with dpg.table_row():
@@ -113,7 +117,7 @@ class HandControlGUI:
         for hand_name in hand_names:
             dpg.set_value(item=hand_name+desired_operation_suffix, value=ERROR_RESET)
 
-    def operate_hands(self):
+    def enable_hands(self):
         for hand_name in hand_names:
             dpg.set_value(item=hand_name+desired_operation_suffix, value=POSITION_CONTROL)
             self._torque_on[hand_name].set(True)

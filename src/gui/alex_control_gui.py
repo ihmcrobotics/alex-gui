@@ -306,7 +306,7 @@ class AlexControlGUI:
             if self._servo_robot:
                 dpg.configure_item("servo_robot", label="Unservo Robot", enabled=True)
                 self._requested_master_gain.set(1.0)
-                self._hand_control.operate_hands()
+                self._hand_control.enable_hands()
                 print("Robot is servoed")
             else:
                 dpg.configure_item("servo_robot", label="Servo Robot", enabled=True)
