@@ -20,7 +20,6 @@ def initialize_joint_position_sliders(joint_names: List[str],
     for i in range(len(joint_names)):
         joint_name = joint_names[i]
         joint_sliders[joint_name] = FloatSlider(joint_name, min_value=lower_limits[i], max_value=upper_limits[i])
-        print(joint_name)
     return joint_sliders
 
 def initialize_joint_parameter_tabs(joint_settings: Dict[str, JointSettings], monitor_scale: float=1.0) -> None:

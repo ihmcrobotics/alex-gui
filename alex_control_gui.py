@@ -54,7 +54,6 @@ class AlexControlGUI:
         dpg.create_viewport(title='Control GUI', width=self._viewer_width, height=self._viewer_height, vsync=False, x_pos=0, y_pos=0)
         dpg.setup_dearpygui()
         dpg.set_global_font_scale(monitor_scale)
-        print(dpg.get_item_rect_size("auto_startup_shutdown"))
         self._first_run=True
 
 
@@ -77,7 +76,13 @@ class AlexControlGUI:
 
         with dpg.window(label="Auto Startup", tag="auto_startup_shutdown", pos=[0, 0]):
             dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, callback=self._run_auto_startup_shutdown)
-            dpg.add_button(label="Emergency Stop", callback=self._emergency_stop)
+            dpg.add_button(label="Emergency Stop", tag="estop", callback=self._emergency_stop, height=50)
+            with dpg.theme() as theme:
+                with dpg.theme_component(dpg.mvButton):
+                    dpg.add_theme_color(dpg.mvThemeCol_Button, (255, 0, 0, 150))
+                    dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (255, 0, 0, 255))
+
+            dpg.bind_item_theme("estop", theme)
         
         with dpg.window(label="Manual Startup", tag="manual_startup_shutdown"):
             dpg.add_button(label="Request Safe Power Up", tag=self._safe_power_up_down_tag, callback=self._run_safe_power_up_down)
@@ -158,7 +163,7 @@ class AlexControlGUI:
                     self._pose_joints = double_wave_pose_joints
                     self._final_positions = double_wave_pose[self._wave_pose_state]
                 self._initial_positions = [self._arm_control.get_desired_joint_position_by_name(name) for name in self._pose_joints]
-                print("Starting move to home pose")
+                print("Starting move to pose")
             else:
                 elapsed_time = time.time() - self._pose_start_time
                 if elapsed_time < self._pose_duration:
@@ -172,22 +177,18 @@ class AlexControlGUI:
                     if (self._curr_pose == WAVE_POSE or self._curr_pose == DOUBLE_WAVE_POSE) and self._wave_pose_state < 3:
                         self._pose_duration = 1.0
                         self._wave_pose_state += 1
-                        print("Switching to state " + str(self._wave_pose_state))
                         self._initial_positions[:] = self._final_positions[:]
                         if self._curr_pose == WAVE_POSE:
                             self._final_positions = wave_pose[self._wave_pose_state]
                         else:
                             self._final_positions = double_wave_pose[self._wave_pose_state]
-                        print(self._initial_positions)
-                        print(self._final_positions)
                         self._pose_start_time = time.time()
                     else:
                         self._run_pose.set(False)
                         self._pose_running = False
-                        print(self._run_pose.value)
                         self._wave_pose_state = 0
 
-                    print("Completed move to home pose")
+                    print("Completed move to pose")
                 self._arm_control.send_desireds()
     
     def _set_spacing(self):
@@ -253,7 +254,6 @@ class AlexControlGUI:
                 time.sleep(self.dt - elapsed_time)
             else:
                 self._missed_loops += 1
-                # print("Missed control loop")
 
     def _read_state(self, alex_state: AlexState):
         self._time.set(alex_state.time)
@@ -299,16 +299,12 @@ class AlexControlGUI:
     def _run_servo_unservo(self):
         servo_ratio = (time.time() - self._servo_timer) / 2.0
 
-        # print(servo_ratio)
         if servo_ratio < 1.0:
             servo_ratio = round(servo_ratio, 2)
             if self._servo_robot:
-                # self._master_gain_scale.set(servo_ratio)
                 self._requested_master_gain.set(servo_ratio)
             else:
-                # self._master_gain_scale.set(self._servo_initial_value* (1.0 - servo_ratio))
                 self._requested_master_gain.set(self._servo_initial_value * (1.0 - servo_ratio))
-            # print(self._requested_master_gain.get())
         else:
             self._high_level_servo_complete = True
             if self._servo_robot:
@@ -345,7 +341,6 @@ class AlexControlGUI:
         if self._request_auto_startup:
             self._reset_sliders()
         self._begin_time = time.perf_counter_ns()
-        print(self._request_auto_startup)
 
     def _update_auto_startup_shutdown(self):
         if self._request_auto_startup and self._auto_startup_complete.value:
@@ -372,28 +367,28 @@ class AlexControlGUI:
                 dpg.configure_item(self._safe_power_up_down_tag, label="Powering Down", enabled=False)
                 self._request_safe_shutdown = True
                 self._safe_power_up_complete = False
-                print("Shutting down")
+                print("Powering down")
             elif self._safe_power_down_complete.value:
                 dpg.configure_item(self._safe_power_up_down_tag, label="Powering up, press to stop", enabled=True)
                 self._request_safe_startup = True
                 self._safe_power_down_complete.set(False)
-                print("Starting up")
+                print("Powering up")
             elif self._request_safe_startup:
                 dpg.configure_item(self._safe_power_up_down_tag, label="Powering Down", enabled=False)
                 self._request_safe_shutdown = True
                 self._request_safe_startup = False
-                print("Shutting down midway through startup")
+                print("Powering down midway through powering up")
         self._begin_time = time.perf_counter_ns()
 
     def _update_safe_power_up_down(self):
         if self._request_safe_startup and self._safe_power_up_complete.value:
             dpg.configure_item(self._safe_power_up_down_tag, label="Request Safe Power Down", enabled=True)
             self._request_safe_startup = False
-            print("safe startup complete")
+            print("safe power up complete")
         elif self._request_safe_shutdown and self._safe_power_down_complete.value:
             dpg.configure_item(self._safe_power_up_down_tag, label="Request Safe Power Up", enabled=True)
             self._request_safe_shutdown = False
-            print("safe shutdown complete")
+            print("safe power down complete")
 
     def time_elapsed(self):
         return (time.perf_counter_ns() - self._begin_time) * 1.0e-9

@@ -16,7 +16,6 @@ from messages import *
 class AlexCommunication:
     def __init__(self, ip_address: str = "10.43.3.6", domain_id: int = 42,  frequency: float = 100.0):
         os.environ["CYCLONEDDS_URI"] = "<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" + ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>"
-        print(os.environ.get("CYCLONEDDS_URI"))
         self.alex_state = None
 
         self._missed_loops = 0
@@ -58,8 +57,6 @@ class AlexCommunication:
             while True:
                 self._num_loops += 1
                 curr_time = time.perf_counter_ns()
-                # print("reader guid:", self.alex_state_reader.guid)
-                # print("matched:", self.alex_state_reader.get_matched_publications())
                 if lock is not None and shared_data is not None:
                     with lock:
                         if self.state_listener.alex_state is not None:
@@ -93,7 +90,6 @@ class AlexCommunication:
                     time.sleep(self.dt - elapsed_time)
                 else:
                     self._missed_loops += 1
-                    # print("Missed comms loop")
         except KeyboardInterrupt:
             print("\nStopping subscription.")
 
@@ -109,7 +105,6 @@ class AlexStateListener(Listener):
 
     def on_data_available(self, reader: DataReader[AlexState]) -> None:
         self.alex_state = reader.read_next()
-        # print("state received")
 
 class HardwareStatusListener(Listener):
     def __init__(self, **kwargs):
@@ -120,7 +115,6 @@ class HardwareStatusListener(Listener):
 
     def on_data_available(self, reader: DataReader[HardwareStatus]) -> None:
         self.hardware_status = reader.read_next()
-        # print("status received")
 
 class HandStateListener(Listener):
     def __init__(self, **kwargs):
@@ -130,16 +124,6 @@ class HandStateListener(Listener):
 
     def on_data_available(self, reader: DataReader[EZGripperState]) -> None:
         self.hand_state = reader.read_next()
-        # print("hand state received")
-
-class HandJointAngleListener(Listener):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.hand_angles = None
-
-    def on_data_available(self, reader: DataReader[HandJointAnglePacket]) -> None:
-        self.hand_angles = reader.read_next()
-        print("angle received")
 
 
 def get_rtps_domain_id(config_path=os.path.expanduser("~/.ihmc/IHMCNetworkParameters.ini")):

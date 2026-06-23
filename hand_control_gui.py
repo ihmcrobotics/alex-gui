@@ -103,8 +103,6 @@ class HandControlGUI:
     
     def set_spacing(self, x_pos: int=0, y_pos: int=0, right_aligned=True):
         dim = dpg.get_item_rect_size("hand_control_gui")
-        print(dim)
-        print(x_pos - dim[0])
         if right_aligned:
             dpg.set_item_pos("hand_control_gui", [x_pos - dim[0], y_pos])
         else:
