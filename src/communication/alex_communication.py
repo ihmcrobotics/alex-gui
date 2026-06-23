@@ -17,7 +17,8 @@ class AlexCommunication:
     """
     This class sets up communication for Alex using DDS.
     """
-    def __init__(self, ip_address: str = "127.0.0.1", domain_id: int = 42,  frequency: float = 100.0):
+
+    def __init__(self, ip_address: str = "127.0.0.1", domain_id: int = 42, frequency: float = 100.0):
         """
         Initialize AlexCommunication class
 
@@ -26,7 +27,9 @@ class AlexCommunication:
         :param frequency: Communication frequency in Hz
         """
         # Set up the communication environment to specifically select the correct IP address
-        os.environ["CYCLONEDDS_URI"] = "<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" + ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>"
+        os.environ[
+            "CYCLONEDDS_URI"] = ("<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" +
+                                 ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>")
         self.alex_state = None
         self._missed_loops = 0
         self._avg_time = 0.0
@@ -34,7 +37,7 @@ class AlexCommunication:
 
         # Set the loop dt
         self.frequency = frequency
-        self.dt = 1.0/frequency
+        self.dt = 1.0 / frequency
 
         # Initialize the DDS communication and topics
         qos = Qos(Policy.Reliability.Reliable(max_blocking_time=1000))
@@ -56,7 +59,7 @@ class AlexCommunication:
         subscriber = Subscriber(domain_participant)
         self._alex_state_reader = DataReader(subscriber, alex_state_topic, qos, listener=self.state_listener)
         self._left_hand_state_reader = DataReader(subscriber, left_hand_state_topic,
-                                                   listener=self.left_hand_state_listener)
+                                                  listener=self.left_hand_state_listener)
         self._right_hand_state_reader = DataReader(subscriber, right_hand_state_topic,
                                                    listener=self.right_hand_state_listener)
         self.hardware_status_reader = DataReader(subscriber, alex_status_topic, listener=self.status_listener)
@@ -67,7 +70,8 @@ class AlexCommunication:
         self._left_hand_command_writer = DataWriter(publisher, left_hand_command_topic, qos)
         self._right_hand_command_writer = DataWriter(publisher, right_hand_command_topic, qos)
 
-    def run_communication(self, lock: Union[threading.Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
+    def run_communication(self, lock: Union[threading.Lock, None] = None,
+                          shared_data: Union[Dict[str, Any], None] = None):
         """
         Run the DDS communication loop continuously until the program ends
         :param lock: Threading lock to read and write data to shared memory
@@ -115,12 +119,11 @@ class AlexCommunication:
             print("\nStopping subscription.")
 
 
-
-
 class AlexStateListener(Listener):
     """
     Listener that reads data from the AlexState topic
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.alex_state = None
@@ -128,10 +131,12 @@ class AlexStateListener(Listener):
     def on_data_available(self, reader: DataReader[AlexState]) -> None:
         self.alex_state = reader.read_next()
 
+
 class HardwareStatusListener(Listener):
     """
     Listener that reads data from the hardware status topic
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hardware_status = None
@@ -139,10 +144,12 @@ class HardwareStatusListener(Listener):
     def on_data_available(self, reader: DataReader[HardwareStatus]) -> None:
         self.hardware_status = reader.read_next()
 
+
 class HandStateListener(Listener):
     """
     Listener that reads data from the hand state topic
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hand_state = None
@@ -150,12 +157,14 @@ class HandStateListener(Listener):
     def on_data_available(self, reader: DataReader[EZGripperState]) -> None:
         self.hand_state = reader.read_next()
 
+
 def main():
     """
     Main function to test out communication
     """
     alex_communication = AlexCommunication()
     alex_communication.run_communication()
+
 
 if __name__ == "__main__":
     main()

@@ -14,11 +14,10 @@ These messages include:
 Go to ihmc-alex-sdk/alex-ros2 to find the messages and respective idl files
 """
 
-
 from dataclasses import dataclass, field
 
 from cyclonedds.idl import IdlStruct
-from cyclonedds.idl.types import bounded_str, float64, int32, uint32, byte, array, sequence, uint8, uint64, float32
+from cyclonedds.idl.types import bounded_str, float64, int32, uint32, byte, array, sequence, uint8, float32
 
 
 @dataclass
@@ -29,6 +28,7 @@ class IMUState(IdlStruct, typename="alex_msgs::msg::dds_::IMUState_"):
     accelerometer: array[float64, 3]
     temperature: int32
     is_operational: bool
+
 
 @dataclass
 class OneDOFJointCommand(IdlStruct, typename="alex_msgs::msg::dds_::OneDOFJointCommand_"):
@@ -44,6 +44,7 @@ class OneDOFJointCommand(IdlStruct, typename="alex_msgs::msg::dds_::OneDOFJointC
     enable: bool = False
     joint_control_type: byte = 0
 
+
 @dataclass
 class OneDOFJointState(IdlStruct, typename="alex_msgs::msg::dds_::OneDOFJointState_"):
     joint_name: bounded_str[35]
@@ -53,12 +54,14 @@ class OneDOFJointState(IdlStruct, typename="alex_msgs::msg::dds_::OneDOFJointSta
     act_temp: float64 = 0.0
     is_operational: bool = False
 
+
 @dataclass
 class ForceTorqueState(IdlStruct, typename="alex_msgs::msg::dds_::ForceTorqueState_"):
     sensor_name: bounded_str[32]
     force: array[float64, 3]
     torque: array[float64, 3]
     is_operational: bool
+
 
 @dataclass
 class AlexState(IdlStruct, typename="alex_msgs::msg::dds_::AlexState_"):
@@ -76,10 +79,11 @@ class AlexState(IdlStruct, typename="alex_msgs::msg::dds_::AlexState_"):
     current_low_level_master_gain: float64 = 0.0
     joint_states: sequence[OneDOFJointState, 50] = field(default_factory=list)
     number_of_joints: uint32 = 0
-    imu_states: sequence[IMUState, 50]= field(default_factory=list)
+    imu_states: sequence[IMUState, 50] = field(default_factory=list)
     number_of_imus: uint32 = 0
-    ft_states: sequence[ForceTorqueState, 50]= field(default_factory=list)
+    ft_states: sequence[ForceTorqueState, 50] = field(default_factory=list)
     number_of_fts: uint32 = 0
+
 
 @dataclass
 class AlexCommand(IdlStruct, typename="alex_msgs::msg::dds_::AlexCommand_"):
@@ -100,6 +104,7 @@ class AlexCommand(IdlStruct, typename="alex_msgs::msg::dds_::AlexCommand_"):
     joint_commands: sequence[OneDOFJointCommand, 50] = field(default_factory=list)
     number_of_joints: uint32 = 0.0
 
+
 @dataclass
 class ROSDeviceStatusProvider(IdlStruct, typename="alex_msgs::msg::dds_::ROSDeviceStatusProvider_"):
     # The device name
@@ -115,6 +120,7 @@ class ROSDeviceStatusProvider(IdlStruct, typename="alex_msgs::msg::dds_::ROSDevi
     sto_disabled: bool = False
     current_short: bool = False
     over_temp: bool = False
+
 
 @dataclass
 class HardwareStatus(IdlStruct, typename="alex_msgs::msg::dds_::HardwareStatus_"):
@@ -148,6 +154,7 @@ class HardwareStatus(IdlStruct, typename="alex_msgs::msg::dds_::HardwareStatus_"
     # Joint States
     device_status_providers: sequence[ROSDeviceStatusProvider, 75] = field(default_factory=list)
 
+
 @dataclass
 class EZGripperState(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGripperState_"):
     # Specifies the current operation mode.
@@ -169,6 +176,7 @@ class EZGripperState(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGripperS
     # Whether the hand has been calibrated
     is_calibrated: bool = False
 
+
 @dataclass
 class EZGripperCommand(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGripperCommand_"):
     operation_mode: uint8 = 0
@@ -176,5 +184,3 @@ class EZGripperCommand(IdlStruct, typename="ihmc_hands_ros2::msg::dds_::EZGrippe
     goal_position: float32 = 0.0
     max_effort: float32 = 0.3
     torque_on: bool = False
-
-
