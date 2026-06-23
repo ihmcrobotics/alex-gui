@@ -37,8 +37,7 @@ def main(urdf_path: str):
                    "left_hand_state": EZGripperState(),
                    "right_hand_state": EZGripperState(),
                    "left_hand_command": EZGripperCommand(),
-                   "right_hand_command": EZGripperCommand(),
-                   "hand_angles": HandJointAnglePacket()}
+                   "right_hand_command": EZGripperCommand()}
 
     visual_thread = threading.Thread(target=robot_visualizer.run_visualizer, args=(thread_lock, shared_data), daemon=True)
     print('Starting visualizer...')
