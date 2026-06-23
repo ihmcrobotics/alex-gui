@@ -6,3 +6,9 @@ build/
 
 #ignore gui info
 src/alex_gui.egg-info
+
+#ignore vscode
+.vscode
+
+#ignore virtual environments
+*venv
