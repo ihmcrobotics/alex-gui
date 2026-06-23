@@ -15,7 +15,7 @@ class HardwareStatusGUI:
         self._motor_bus_power = [0.0] * plot_length
 
         with dpg.window(label="Hardware Status", tag="hardware_status"):
-            dpg.add_text("Hardware Status:")
+            dpg.add_text("Robot Status:")
             with dpg.group(horizontal=True):
                 self._robot_fault = CheckBox("Robot Fault", False)
                 self._motor_fault = CheckBox("Motor Fault", False)
@@ -31,7 +31,7 @@ class HardwareStatusGUI:
             with dpg.group(horizontal=True):
                 dpg.add_text("Working Counter Mismatches:")
                 self._working_counter_mismatches = ValueDisplay("Working Counter Mismatches", initial_value=0)
-            self._working_counter_fault = CheckBox("Working Counter", False)
+            self._working_counter_fault = CheckBox("Working Counter Fault", False)
 
             dpg.add_text("Power Status:")
             with dpg.group(horizontal=True):
