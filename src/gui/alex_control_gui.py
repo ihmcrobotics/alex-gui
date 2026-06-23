@@ -71,7 +71,7 @@ class AlexControlGUI:
 
         with dpg.window(label="Auto Startup", tag="auto_startup_shutdown", pos=[0, 0]):
             dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, height=30*self._monitor_scale, callback=self._run_auto_startup_shutdown)
-            dpg.add_button(label="Emergency Stop", tag="estop", callback=self._emergency_stop, height=30*self._monitor_scale)
+            dpg.add_button(label="EMERGENCY STOP", tag="estop", callback=self._emergency_stop, height=30*self._monitor_scale)
             with dpg.theme() as estop_theme:
                 with dpg.theme_component(dpg.mvButton):
                     dpg.add_theme_color(dpg.mvThemeCol_Button, (255, 0, 0, 200))
