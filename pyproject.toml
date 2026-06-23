@@ -1,0 +1,10 @@
+[project]
+name="alex-gui"
+version="0.1"
+dependencies=[
+    "lxml",
+    "scikit-robot",
+    "cyclonedds",
+    "dearpygui",
+    "screeninfo"
+]
