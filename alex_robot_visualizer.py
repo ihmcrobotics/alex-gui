@@ -1,10 +1,9 @@
-from typing import Literal, List, Dict
-from skrobot.model import RobotModel, Link, CascadedLink
-from skrobot.models import PR2
-from skrobot.viewers import TrimeshSceneViewer, PyrenderViewer, ViserViewer
-import random
 import time
 from threading import Lock
+from typing import List, Dict
+
+from skrobot.model import RobotModel
+from skrobot.viewers import PyrenderViewer
 
 
 class AlexVisualizer:

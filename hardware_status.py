@@ -1,8 +1,6 @@
-import dearpygui.dearpygui as dpg
 from dearpygui_helpers import *
-import numpy as np
 from messages import HardwareStatus
-import random
+
 
 class HardwareStatusGUI:
     def __init__(self, plot_length: int=200):

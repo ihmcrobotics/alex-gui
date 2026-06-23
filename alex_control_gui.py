@@ -1,16 +1,10 @@
-import time
-from typing import List, Dict, Literal, Union, Any
-
-from poses import *
 from threading import Lock
-import math
-from skrobot.model import RobotModel
-from joint_control_gui import *
-from hardware_status import *
-import dearpygui.dearpygui as dpg
-from dearpygui_helpers import *
+from typing import Union
 
-from messages import OneDOFJointCommand, OneDOFJointState, AlexCommand, AlexState
+from hardware_status import *
+from joint_control_gui import *
+from messages import OneDOFJointCommand, AlexCommand, AlexState
+from poses import *
 
 DO_NOTHING = "Do Nothing"
 HOLD_POSITION = "Hold Position"
@@ -401,7 +395,6 @@ class AlexControlGUI:
         print("Window closed, shutting down")
 
 
-import threading
 if __name__ == "__main__":
     dpg.create_context()
     dpg.configure_app(docking=True, docking_space=True)

@@ -1,8 +1,7 @@
-import math
 from dataclasses import dataclass, field
-from cyclonedds.idl.types import bounded_str, float64, int32, uint32, byte, array, sequence, uint8, uint64, float32
-from cyclonedds.idl import IdlStruct
 
+from cyclonedds.idl import IdlStruct
+from cyclonedds.idl.types import bounded_str, float64, int32, uint32, byte, array, sequence, uint8, uint64, float32
 
 
 @dataclass

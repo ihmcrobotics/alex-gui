@@ -1,6 +1,3 @@
-import math
-from typing import Tuple
-
 
 class JointSettings:
     def __init__(self, max_torque: float,

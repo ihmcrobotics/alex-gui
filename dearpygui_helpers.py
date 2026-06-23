@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, List, Dict
+from typing import Any, Dict
 
 import dearpygui.dearpygui as dpg
+
 
 def update_value(sender, app_data, user_data):
     user_data.set(app_data)

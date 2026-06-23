@@ -1,15 +1,11 @@
 import math
 import time
-from typing import List, Dict
+from typing import List
+
+from skrobot.model import RobotModel
+
 from dearpygui_helpers import *
-
-from skrobot.model import RobotModel, Joint
-import dearpygui.dearpygui as dpg
-
 from joint_settings import JointSettings
-
-from hand_control_gui import HandControlGUI
-
 from messages import OneDOFJointState, OneDOFJointCommand
 
 
