@@ -17,9 +17,10 @@ class HandControlGUI:
 
         with dpg.window(label="Hand Control", tag="hand_control_gui"):
             with dpg.group(horizontal=True):
-                dpg.add_button(label="Calibrate Hands", callback=self._calibrate_hands)
-                dpg.add_button(label="Reset Errors", callback=self._reset_errors)
-                dpg.add_button(label="Operate Hands", callback=self._operate_hands)
+                dpg.add_button(label="Calibrate Hands", callback=self.calibrate_hands)
+                dpg.add_button(label="Reset Errors", callback=self.reset_errors)
+                dpg.add_button(label="Operate Hands", callback=self.operate_hands)
+                dpg.add_button(label="Disable Hands", callback=self.disable_hands)
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Close Hands", callback=self._close_hands)
                 dpg.add_button(label="Open Hands", callback=self._open_hands)
@@ -104,18 +105,22 @@ class HandControlGUI:
         else:
             dpg.set_item_pos("hand_control_gui", [x_pos, y_pos])
 
-    def _calibrate_hands(self):
+    def calibrate_hands(self):
         for hand_name in hand_names:
             dpg.set_value(item=hand_name+desired_operation_suffix, value=CALIBRATION)
 
-    def _reset_errors(self):
+    def reset_errors(self):
         for hand_name in hand_names:
             dpg.set_value(item=hand_name+desired_operation_suffix, value=ERROR_RESET)
 
-    def _operate_hands(self):
+    def operate_hands(self):
         for hand_name in hand_names:
             dpg.set_value(item=hand_name+desired_operation_suffix, value=POSITION_CONTROL)
             self._torque_on[hand_name].set(True)
+    
+    def disable_hands(self):
+        for hand_name in hand_names:
+            self._torque_on[hand_name].set(False)
 
     def _close_hands(self):
         for hand_name in hand_names:

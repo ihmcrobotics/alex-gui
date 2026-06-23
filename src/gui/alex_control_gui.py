@@ -94,6 +94,7 @@ class AlexControlGUI:
     def _emergency_stop(self):
         self._unservo_quickly = True
         self._enable_actuators.set(False)
+        self._hand_control.disable_hands()
         self._requested_master_gain.set(0.0)
         self._request_auto_shutdown = True
 
@@ -305,10 +306,12 @@ class AlexControlGUI:
             if self._servo_robot:
                 dpg.configure_item("servo_robot", label="Unservo Robot", enabled=True)
                 self._requested_master_gain.set(1.0)
+                self._hand_control.operate_hands()
                 print("Robot is servoed")
             else:
                 dpg.configure_item("servo_robot", label="Servo Robot", enabled=True)
                 self._requested_master_gain.set(0.0)
+                self._hand_control.disable_hands()
                 if self._shutdown_process_started:
                     self._request_auto_shutdown = True
                 print("Robot is unservoed")
@@ -351,6 +354,7 @@ class AlexControlGUI:
             dpg.configure_item(self._auto_startup_shutdown_tag, label="Request Auto Shutdown", enabled=True)
             self._request_auto_startup = False
             self._enable_actuators.set(True)
+            self._hand_control.calibrate_hands()
             self._start_servo_unservo()
             dpg.set_value('control_state', USER_CONTROL)
             print("auto startup complete")
@@ -396,13 +400,6 @@ class AlexControlGUI:
 
     def time_elapsed(self):
         return (time.perf_counter_ns() - self._begin_time) * 1.0e-9
-
-
-    def is_destroyed(self, event):
-        if event.widget != self.control_panel:
-            return
-        self.window_active = False
-        print("Window closed, shutting down")
 
 
 if __name__ == "__main__":

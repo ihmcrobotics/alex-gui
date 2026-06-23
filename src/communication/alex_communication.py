@@ -14,7 +14,7 @@ from .messages import *
 
 
 class AlexCommunication:
-    def __init__(self, ip_address: str = "10.43.3.6", domain_id: int = 42,  frequency: float = 100.0):
+    def __init__(self, ip_address: str = "127.0.0.1", domain_id: int = 42,  frequency: float = 100.0):
         os.environ["CYCLONEDDS_URI"] = "<CycloneDDS><Domain><General><Interfaces><NetworkInterface address=\"" + ip_address + "\"/></Interfaces></General></Domain></CycloneDDS>"
         self.alex_state = None
 
