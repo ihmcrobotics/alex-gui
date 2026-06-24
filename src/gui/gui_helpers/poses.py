@@ -10,7 +10,7 @@ WAVE_POSE = "WAVE"
 DOUBLE_WAVE_POSE = "DOUBLE WAVE"
 HOME_POSE = "HOME"
 ARMS_UP_POSE = "ARMS_UP"
-poses = [WAVE_POSE, HOME_POSE, ARMS_UP_POSE, DOUBLE_WAVE_POSE]
+poses = [HOME_POSE, ARMS_UP_POSE, WAVE_POSE, DOUBLE_WAVE_POSE]
 
 # Lists for the pose joints and respective final positions
 home_pose_values = [0.0, 0.0, 0.0, 0.0,
