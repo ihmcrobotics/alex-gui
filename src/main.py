@@ -56,6 +56,6 @@ def main(urdf_path: str):
 
 if __name__ == '__main__':
     logging.getLogger("skrobot").setLevel(logging.ERROR)
-    path = merge_urdfs("purdue", PURDUE_FULL_PARTS, fixed_joints=["PEDESTAL_F"], output_name="purdue_full")
+    path = merge_urdfs("purdue", PURDUE_FULL_PARTS, fixed_joints=["PEDESTAL_F"], save_name="purdue_full")
     # path = "../ihmc-alex-sdk/alex-models/alex_purdue_description/urdf/hehe_full.urdf"
     main(path)
