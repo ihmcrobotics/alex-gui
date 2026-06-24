@@ -3,17 +3,26 @@ from .gui_helpers.dearpygui_helpers import *
 
 
 class HardwareStatusGUI:
-    def __init__(self, plot_length: int=200):
-        self._time_count = 0.0
-        self._plot_length = plot_length
-        self._time = [0.0] * plot_length
-        self._power_supply_voltage = [0.0] * plot_length
-        self._motor_bus_voltage = [0.0] * plot_length
-        self._power_supply_current = [0.0] * plot_length
-        self._motor_bus_current = [0.0] * plot_length
-        self._power_supply_power = [0.0] * plot_length
-        self._motor_bus_power = [0.0] * plot_length
+    """
+    This class handles the GUI for the hardware status of Alex
+    """
 
+    def __init__(self, plot_history: int = 200):
+        """
+        Initialize the hardware status GUI
+        :param plot_history: How many points to store for the plot
+        """
+        self._time_count = 0.0
+        self._plot_history = plot_history
+        self._time = [0.0]
+        self._power_supply_voltage = [0.0] * plot_history
+        self._motor_bus_voltage = [0.0] * plot_history
+        self._power_supply_current = [0.0] * plot_history
+        self._motor_bus_current = [0.0] * plot_history
+        self._power_supply_power = [0.0] * plot_history
+        self._motor_bus_power = [0.0] * plot_history
+
+        # Create and populate the hardware status window
         with dpg.window(label="Hardware Status", tag="hardware_status"):
             dpg.add_text("Robot Status:")
             with dpg.group(horizontal=True):
@@ -33,6 +42,7 @@ class HardwareStatusGUI:
                 self._working_counter_mismatches = ValueDisplay("Working Counter Mismatches", initial_value=0)
             self._working_counter_fault = CheckBox("Working Counter Fault", False)
 
+            # Create plots for the power status. Currently, the plots include voltage and current
             dpg.add_text("Power Status:")
             with dpg.group(horizontal=True):
                 with dpg.plot(label="Voltage", tag="voltage_plot", width=350, height=200):
@@ -40,8 +50,8 @@ class HardwareStatusGUI:
                     dpg.add_plot_axis(dpg.mvXAxis, tag="voltage_time", no_label=True, no_tick_labels=True)
                     dpg.add_plot_axis(dpg.mvYAxis, tag="voltage", label="Voltage (V)")
                     dpg.set_axis_limits("voltage", ymax=50.0, ymin=0.0)
-                    dpg.add_line_series([], [], parent="voltage", label = "Power Supply", tag="power_supply_voltage")
-                    dpg.add_line_series([], [], parent="voltage", label = "Motor Bus", tag="motor_bus_voltage")
+                    dpg.add_line_series([], [], parent="voltage", label="Power Supply", tag="power_supply_voltage")
+                    dpg.add_line_series([], [], parent="voltage", label="Motor Bus", tag="motor_bus_voltage")
                 with dpg.plot(label="Current", tag="current_plot", width=350, height=200):
                     dpg.add_plot_axis(dpg.mvXAxis, tag="current_time", no_label=True, no_tick_labels=True)
                     dpg.add_plot_axis(dpg.mvYAxis, tag="current", label="Current (A)")
@@ -53,8 +63,14 @@ class HardwareStatusGUI:
             #     dpg.add_plot_axis(dpg.mvYAxis, tag="power", label="Power (W)")
             #     dpg.add_line_series([], [], parent="power", tag="power_supply_power")
             #     dpg.add_line_series([], [], parent="power", tag="motor_bus_power")
-    
-    def set_spacing(self, x_pos: int=0, y_pos: int=0, right_aligned=True):
+
+    def set_window_positioning(self, x_pos: int = 0, y_pos: int = 0, right_aligned=True):
+        """
+        Set the positioning of the window based on new x and y positions.
+        :param x_pos: New x position of the window
+        :param y_pos: New y positions of the window
+        :param right_aligned: If right aligned, use x as right side origin. Else, use x as left side origin
+        """
         dim = dpg.get_item_rect_size("hardware_status")
         if right_aligned:
             dpg.set_item_pos("hardware_status", [x_pos - dim[0], y_pos])
@@ -62,6 +78,11 @@ class HardwareStatusGUI:
             dpg.set_item_pos("hardware_status", [x_pos, y_pos])
 
     def update(self, status: HardwareStatus, robot_time: float):
+        """
+        Update the hardware status GUI
+        :param status: The current hardware status
+        :param robot_time: The current robot operation time
+        """
 
         self._robot_fault.set(status.robot_fault)
         self._motor_fault.set(status.motor_fault)
@@ -76,8 +97,14 @@ class HardwareStatusGUI:
         self._update_plots(status, robot_time)
 
     def _update_plots(self, status: HardwareStatus, robot_time: float):
+        """
+        Update the plots of the hardware status
+        :param status: The current hardware status
+        :param robot_time: The current robot operation time
+        """
 
-        if len(self._time) >= self._plot_length:
+        # If we have already reached max number of points, remove the oldest point
+        if len(self._time) >= self._plot_history:
             self._time.pop(0)
             self._power_supply_voltage.pop(0)
             self._motor_bus_voltage.pop(0)
@@ -95,14 +122,6 @@ class HardwareStatusGUI:
         self._power_supply_power.append(status.power_supply_power_watts)
         self._motor_bus_power.append(status.motor_bus_power_watts)
 
-        # self._time.append(self._time_count)
-        # self._power_supply_voltage.append(random.random())
-        # self._motor_bus_voltage.append(random.random())
-        # self._power_supply_current.append(random.random())
-        # self._motor_bus_current.append(random.random())
-        # self._power_supply_power.append(random.random())
-        # self._motor_bus_power.append(random.random())
-
         x_low = self._time[0]
         x_high = self._time[-1]
         dpg.set_axis_limits("voltage_time", x_low, x_high)
@@ -115,6 +134,3 @@ class HardwareStatusGUI:
         dpg.set_value("motor_bus_current", [self._time, self._motor_bus_current])
         # dpg.set_value("power_supply_power", [self._time, self._power_supply_power])
         # dpg.set_value("motor_bus_power", [self._time, self._motor_bus_power])
-
-
-

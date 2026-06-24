@@ -6,6 +6,7 @@ from .hand_control_gui import *
 from .hardware_status import *
 from .joint_control_gui import *
 
+# Set the names and dictionary for robot control states
 DO_NOTHING = "Do Nothing"
 HOLD_POSITION = "Hold Position"
 USER_CONTROL = "User Control"
@@ -14,7 +15,20 @@ robot_control_state = {DO_NOTHING: 0,
                        USER_CONTROL: 2}
 
 class AlexControlGUI:
+    """
+    This class creates the GUI to control Alex
+    """
     def __init__(self, robot_model: RobotModel, frequency: float= 100.0, width: int=1400, height: int=1000, monitor_scale: float = 1.0):
+        """
+        Initialize the GUI
+        :param robot_model: The robot model
+        :param frequency: Update frequency of the GUI
+        :param width: Initial width of the viewport
+        :param height: Initial height of the viewport
+        :param monitor_scale: Scaling for dearpygui items based on the monitor being used
+        """
+
+        # Initialize dearpygui
         dpg.create_context()
         dpg.configure_app(docking=True, docking_space=True)
         self.frequency = frequency
@@ -24,6 +38,7 @@ class AlexControlGUI:
         self._viewer_width = width
         self._viewer_height = height
 
+        # Initialize all the GUI windows
         self._initialize_startup_shutdown_buttons()
         self._initialize_state_buttons()
         self._arm_control = JointControlGUI(robot_model, monitor_scale)
@@ -52,7 +67,9 @@ class AlexControlGUI:
 
 
     def _initialize_startup_shutdown_buttons(self):
-
+        """
+        Create the window for startup and shutdown operations
+        """
         self._request_auto_startup = False
         self._request_auto_shutdown = False
         self._shutdown_process_started = False
@@ -68,18 +85,19 @@ class AlexControlGUI:
         self._auto_startup_shutdown_tag = "request_auto"
         self._safe_power_up_down_tag = "request_safe"
 
+        # Create and populate the auto startup and shutdown window
         with dpg.window(label="Auto Startup", tag="auto_startup_shutdown", pos=[0, 0]):
-            dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, height=30*self._monitor_scale, callback=self._run_auto_startup_shutdown)
+            dpg.add_button(label="Request Auto Startup", tag=self._auto_startup_shutdown_tag, height=30*self._monitor_scale, callback=self._start_auto_startup_shutdown)
             dpg.add_button(label="EMERGENCY STOP", tag="estop", callback=self._emergency_stop, height=30*self._monitor_scale)
             with dpg.theme() as estop_theme:
                 with dpg.theme_component(dpg.mvButton):
                     dpg.add_theme_color(dpg.mvThemeCol_Button, (255, 0, 0, 200))
                     dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (255, 0, 0, 255))
-
             dpg.bind_item_theme("estop", estop_theme)
-        
+
+        # Create and populate the manual startup and shutdown window
         with dpg.window(label="Manual Startup", tag="manual_startup_shutdown"):
-            dpg.add_button(label="Request Safe Power Up", tag=self._safe_power_up_down_tag, callback=self._run_safe_power_up_down)
+            dpg.add_button(label="Request Safe Power Up", tag=self._safe_power_up_down_tag, callback=self._start_safe_power_up_down)
             self._clear_faults = Button("Clear Faults")
             self._enable_actuators = CheckBox("Enable Actuators", False)
             dpg.add_button(label="Servo Robot", tag="servo_robot", callback=self._start_servo_unservo)
@@ -90,14 +108,10 @@ class AlexControlGUI:
                 dpg.add_text("Control State: ")
                 dpg.add_combo(items=[DO_NOTHING, USER_CONTROL], tag="control_state", width=100*self._monitor_scale, default_value=DO_NOTHING)
 
-    def _emergency_stop(self):
-        self._unservo_quickly = True
-        self._enable_actuators.set(False)
-        self._hand_control.disable_hands()
-        self._requested_master_gain.set(0.0)
-        self._request_auto_shutdown = True
-
     def _initialize_state_buttons(self):
+        """
+        Create the window to track the current robot state
+        """
         with dpg.window(label="Robot State", tag="robot_state", pos=[0, 300]):
             with dpg.group(horizontal=True):
                 dpg.add_text("Time")
@@ -119,6 +133,9 @@ class AlexControlGUI:
                 self._auto_shutdown_complete = CheckBox("Auto Shut Down Complete", True)
 
     def _initialize_pose_buttons(self):
+        """
+        Create the window to send poses to the robot
+        """
         self._wave_pose_state = 0
         self._pose_running = False
         self._pose_start_time = time.time()
@@ -137,7 +154,20 @@ class AlexControlGUI:
 
             self._run_pose = CheckBox("Run Pose", False)
 
+    def _emergency_stop(self):
+        """
+        Emergency stop of the robot. Disables the actuators and hands immediately and starts the shutdown process
+        """
+        self._unservo_quickly = True
+        self._enable_actuators.set(False)
+        self._hand_control.disable_hands()
+        self._requested_master_gain.set(0.0)
+        self._request_auto_shutdown = True
+
     def _run_poses(self):
+        """
+        Run the pose selected to completion
+        """
         if self._run_pose.value:
             if not self._pose_running:
                 self._curr_pose = dpg.get_value("poses")
@@ -186,28 +216,34 @@ class AlexControlGUI:
                     print("Completed move to pose")
                 self._arm_control.send_desireds()
     
-    def _set_spacing(self):
+    def _set_window_positioning(self):
+        """
+        Set the positioning of the GUI windows
+        """
         self._arm_control.set_spacing()
         dpg.set_item_pos("manual_startup_shutdown", [0, self._auto_dimensions[1]])
         dpg.set_item_pos("robot_state", [0, self._auto_dimensions[1] + self._manual_dimensions[1]])
         dpg.set_item_pos("pose_window", [self._auto_dimensions[0], 0])
         
-        self._hand_control.set_spacing(x_pos=dpg.get_viewport_client_width() - self._arm_control.control_dimensions[0])
-        self._hardware_status.set_spacing(y_pos=self._auto_dimensions[1]+self._manual_dimensions[1]+self._state_dimensions[1], right_aligned=False)
+        self._hand_control.set_window_positioning(x_pos=dpg.get_viewport_client_width() - self._arm_control.control_dimensions[0])
+        self._hardware_status.set_window_positioning(y_pos=self._auto_dimensions[1] + self._manual_dimensions[1] + self._state_dimensions[1], right_aligned=False)
 
     def update_gui(self):
+        """
+        Update the GUI
+        """
         if self._first_run:
             self._auto_dimensions = dpg.get_item_rect_size("auto_startup_shutdown")
             self._manual_dimensions = dpg.get_item_rect_size("manual_startup_shutdown")
             self._state_dimensions = dpg.get_item_rect_size("robot_state")
             self._pose_dimensions = dpg.get_item_rect_size("pose_window")
             if self._auto_dimensions[0] > 100:
-                self._set_spacing()
+                self._set_window_positioning()
                 self._first_run = False
         viewer_width = dpg.get_viewport_client_width()
         if viewer_width != self._viewer_width:
             self._arm_control.set_spacing()
-            self._hand_control.set_spacing(x_pos=dpg.get_viewport_client_width() - self._arm_control.control_dimensions[0])
+            self._hand_control.set_window_positioning(x_pos=dpg.get_viewport_client_width() - self._arm_control.control_dimensions[0])
             # self._arm_control.update_window_positions(viewer_width)
         self._update_auto_startup_shutdown()
         self._update_safe_power_up_down()
@@ -216,11 +252,20 @@ class AlexControlGUI:
         self._run_poses()
         dpg.render_dearpygui_frame()
 
-    def _reset_sliders(self):
+    def _reset_joint_sliders(self):
+        """
+        Reset the joint control sliders
+        :return:
+        """
         self._arm_control.reset_sliders()
         self._arm_control.send_desireds()
 
     def run_gui(self, lock: Union[Lock, None] = None, shared_data: Union[Dict[str, Any], None] = None):
+        """
+        Run the GUI
+        :param lock: Threading lock for shared memory
+        :param shared_data: Dictionary of shared memory data
+        """
         while dpg.is_dearpygui_running():
             prev_loop_start_time = self._loop_start_time
             self._loop_start_time = time.perf_counter_ns()
@@ -251,6 +296,11 @@ class AlexControlGUI:
                 self._missed_loops += 1
 
     def _read_state(self, alex_state: AlexState):
+        """
+        Read the current state of the robot and update the GUI
+        :param alex_state: The current state of alex
+        :return:
+        """
         self._time.set(alex_state.time)
         self._is_faulted.set(alex_state.is_faulted)
         self._is_servoing.set(alex_state.is_servoing)
@@ -266,6 +316,10 @@ class AlexControlGUI:
         self._arm_control.updated_measured(alex_state.joint_states)
 
     def _write_command(self, alex_command: AlexCommand):
+        """
+        Write the new commands from the GUI to the robot
+        :param alex_command: The new command to write to the robot
+        """
         alex_command.request_auto_startup = self._request_auto_startup
         alex_command.request_auto_shutdown = self._request_auto_shutdown
         alex_command.clear_faults = self._clear_faults.value
@@ -279,6 +333,9 @@ class AlexControlGUI:
         self._arm_control.update_desireds(alex_command.joint_commands)
 
     def _start_servo_unservo(self):
+        """
+        Start the servo/unservo process
+        """
         self._servo_robot = not self._servo_robot
         if not self._servo_robot:
             dpg.configure_item("servo_robot", label="Unservoing Robot", enabled=False)
@@ -292,6 +349,9 @@ class AlexControlGUI:
             self._high_level_servo_complete = False
 
     def _run_servo_unservo(self):
+        """
+        Run through the servo/unservo process
+        """
         servo_ratio = (time.time() - self._servo_timer) / 2.0
 
         if servo_ratio < 1.0:
@@ -315,7 +375,10 @@ class AlexControlGUI:
                     self._request_auto_shutdown = True
                 print("Robot is unservoed")
 
-    def _run_auto_startup_shutdown(self):
+    def _start_auto_startup_shutdown(self):
+        """
+        Start the auto startup/shutdown process
+        """
         if not self._request_auto_startup and not self._request_auto_shutdown:
             if not self._auto_shutdown_complete and not self._auto_startup_complete:
                 dpg.configure_item(self._auto_startup_shutdown_tag, label="Starting up, press to stop", enabled=True)
@@ -342,10 +405,13 @@ class AlexControlGUI:
             self._request_auto_startup = False
             print("Shutting down midway through startup")
         if self._request_auto_startup:
-            self._reset_sliders()
+            self._reset_joint_sliders()
         self._begin_time = time.perf_counter_ns()
 
     def _update_auto_startup_shutdown(self):
+        """
+        Update the auto startup/shutdown status
+        """
         if self._shutdown_process_started and self._current_ll_master_gain == 0:
             self._enable_actuators.set(False)
             self._request_auto_shutdown = True
@@ -364,7 +430,10 @@ class AlexControlGUI:
             dpg.set_value('control_state', DO_NOTHING)
             print("auto shutdown complete")
 
-    def _run_safe_power_up_down(self):
+    def _start_safe_power_up_down(self):
+        """
+        Start the safe power up/down process
+        """
         if not self._request_safe_startup and not self._request_safe_shutdown:
             if not self._safe_power_down_complete.value and not self._safe_power_up_complete.value:
                 dpg.configure_item(self._safe_power_up_down_tag, label="Powering up, press to stop", enabled=True)
@@ -388,6 +457,9 @@ class AlexControlGUI:
         self._begin_time = time.perf_counter_ns()
 
     def _update_safe_power_up_down(self):
+        """
+        Update the safe power up/down process
+        """
         if self._request_safe_startup and self._safe_power_up_complete.value:
             dpg.configure_item(self._safe_power_up_down_tag, label="Request Safe Power Down", enabled=True)
             self._request_safe_startup = False
@@ -396,9 +468,6 @@ class AlexControlGUI:
             dpg.configure_item(self._safe_power_up_down_tag, label="Request Safe Power Up", enabled=True)
             self._request_safe_shutdown = False
             print("safe power down complete")
-
-    def time_elapsed(self):
-        return (time.perf_counter_ns() - self._begin_time) * 1.0e-9
 
 
 if __name__ == "__main__":
