@@ -40,7 +40,7 @@ def main(urdf_path: str):
 
     # Initialize the communication. If just wanting to communicate with the robot, make sure the IP address is set to
     # the address that connects to the robot. Otherwise, 127.0.0.1 will allow the GUI and visualizer to still run
-    communication = AlexCommunication("127.0.0.1", frequency=comm_frequency) #"10.43.3.3"
+    communication = AlexCommunication("10.43.3.3", frequency=comm_frequency) #"10.43.3.3"
     joint_commands = [OneDOFJointCommand(joint_name=name) for name in robot.joint_names]
     alex_command = AlexCommand(joint_commands=joint_commands, number_of_joints=len(joint_commands))
 
